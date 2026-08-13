@@ -9,7 +9,7 @@ This document constitutes the definitive technical specification for **CV Make**
 
 ## 1. General Overview & Requirements
 
-Section 1 defines the foundational parameters governing the `cv-make` project. It establishes the high-level objectives, enumerates explicit functional and non-functional requirements, defines the environment boundaries (Debian 13 Trixie runtime within Podman/Docker), and outlines licensing compliance for Open Source distribution.
+Section 1 defines the foundational parameters governing the `cv-make` project. It establishes the high-level objectives, enumerates explicit functional and non-functional requirements, and defines the environment boundaries (Debian 13 Trixie runtime within Podman/Docker).
 
 ### 1.1 Project Objectives & Scope
 
@@ -38,13 +38,18 @@ Section 1.2 specifies the functional capabilities required of the `cv-make` tool
 
 #### Requirement 1: Command-Line Interface & Parameter Parsing
 
-* **CLI Parameter Map:** The utility shall accept arguments for the input Markdown document, an optional profile photograph, optional custom CSS stylesheets, the output PDF destination file path, and a verbosity toggle.
+* **CLI Parameter Map:** The utility shall accept arguments for the input Markdown document, an optional profile photograph, optional custom CSS stylesheets, the output PDF destination file path, a verbosity toggle, an online container update trigger, and a self-uninstallation flag.
 * **Syntax Signature:**
     ```bash
     cv-make [INPUT.md] [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [--out OUTPUT.pdf] [-v|--verbose]
+    cv-make --update | --upgrade
+    cv-make --uninstall
+    cv-make -h | --help
     ```
 * **Multiple Stylesheet Ingestion:** The CLI shall accept multiple `--style` flag invocations. Stylesheets shall be injected in the exact order declared on the command line following the default base stylesheet.
 * **Verbosity Flag:** The CLI shall accept `-v` or `--verbose` flags to enable detailed diagnostic output from the preprocessor and underlying DTP layout engine.
+* **Container Update Flag:** The CLI shall accept `--update` (or alias `--upgrade`) to pull the latest release image from GitHub Container Registry (GHCR) into local container storage.
+* **Uninstallation Flag:** The CLI shall accept `--uninstall` to trigger full teardown of local container images and binary wrappers.
 
 #### Requirement 2: Stream Processing & Pipeline Integration
 
@@ -81,7 +86,7 @@ The document structure shall map strictly to a 4-tier HTML heading hierarchy:
 * **Flexbox Transformation Rule:** Any Markdown header (`H3`/`H4`) or standalone paragraph containing a pipe (`|`) symbol shall be parsed into a 2-column flexbox container (`<h3 class="flex-line">` or `<div class="flex-line">`):
     ```html
     <h3 class="flex-line">
-      <span class="line-left">Sii Sp. z o.o. – <em>Software Engineer</em></span>
+      <span class="line-left">Company Inc. – <em>Software Engineer</em></span>
       <span class="line-right">01.2023 – 03.2024</span>
     </h3>
     ```
@@ -116,7 +121,7 @@ The document structure shall map strictly to a 4-tier HTML heading hierarchy:
 
 ### 1.3 Non-Functional Requirements
 
-Section 1.3 details the non-functional software quality attributes, execution boundaries, OS compatibility matrix, rootless installation mechanics, and licensing parameters.
+Section 1.3 details the non-functional software quality attributes, execution boundaries, OS compatibility matrix, rootless installation mechanics, container image lifecycle management, and ATS output compliance parameters.
 
 #### Requirement 12: Isolated Containerized Runtime Environment
 
@@ -128,30 +133,45 @@ Section 1.3 details the non-functional software quality attributes, execution bo
 * **Primary OS Target:** Debian 13 Trixie (Linux) serves as the base container OS image (`debian:trixie-slim`) and primary target environment.
 * **Linux/POSIX Compatibility:** Full compatibility across modern Linux distributions (Debian, Ubuntu, Fedora, Arch Linux, Red Hat Enterprise Linux) operating Podman or Docker in rootless mode.
 
-#### Requirement 14: Scripted Linux Installer
+#### Requirement 14: Production & Development Scripted Linux Installers
 
-* **Linux Installer:** `install.sh` (POSIX Bash script) managing rootless environment configuration and wrapper binary deployment.
-* **Package Manager Agnosticism:** Installation bypasses distribution-specific package managers (`.deb`, `.rpm`), executing purely via scriptable container pulls and local binary wrapping.
+* **Production Standalone Installer (`install.sh`):** POSIX Bash script engineered strictly for end-user standalone deployments. It downloads the pre-compiled binary wrapper archive (`cv-make-linux-amd64.tar.gz`) from GitHub Releases, pulls the official container image from GitHub Container Registry (GHCR), and automatically configures `export CV_MAKE_CONTAINER_IMAGE="ghcr.io/<owner>/cv-make:latest"` alongside `~/.local/bin` in the user's shell profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`). It requires no access to repository source code or local `Dockerfile` builds.
+* **Developer Repository Installer (`install_dev.sh`):** POSIX Bash script located in the repository root for local development environments. It builds the development container image locally from the root `Dockerfile` (tagged explicitly as `cv-make:dev`), deploys the repository's local `bin/cv-make` wrapper executable to `~/.local/bin/cv-make`, and automatically configures `export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` alongside `~/.local/bin` in the user's active shell profile.
+* **Duplicate Installation Guard & Idempotency:** If the target wrapper executable (`~/.local/bin/cv-make`) already exists on the host system, executing either installer without explicit repair flags shall halt execution with exit code 0, displaying an informative diagnostic to `STDERR` guiding the user to `cv-make --update` or `./install.sh --reinstall`.
+* **Reinstallation / Repair Mode:** Invoking `./install.sh --reinstall` (or alias `--repair`) forces a clean reinstallation sequence, purging pre-existing local wrappers and pulling or rebuilding the target container image layer based on the active installation mode.
 
-#### Requirement 15: Local Rootless Installation & Self-Healing Wrapper
+#### Requirement 15: Local Rootless Installation & Environment-Driven Immutable Wrapper
 
-* **Rootless Installation:** The installation executes entirely within user space (writing executable binaries to `~/.local/bin`). No administrative (`root` or `sudo`) privileges are required.
-* **Self-Healing Mechanics:** The host CLI wrapper script dynamically inspects local container storage. If the container image (`cv-make:latest` or GHCR image) is missing (e.g., purged via `podman system prune`), the wrapper automatically pulls or rebuilds the required image on demand prior to document generation, writing progress logs strictly to `STDERR`.
+* **Rootless User-Space Installation:** The installation executes entirely within user space (deploying the executable wrapper binary to `~/.local/bin/cv-make`). No administrative (`root` or `sudo`) privileges are required.
+* **Immutable Wrapper Architecture:** The host wrapper script (`bin/cv-make`) is an immutable, static executable file requiring no string substitution or template compilation during installation.
+* **Strict Environment Image Binding:** The wrapper script possesses no hardcoded default container image name. It relies strictly on the `$CV_MAKE_CONTAINER_IMAGE` environment variable configured during installation (`ghcr.io/<owner>/cv-make:latest` for production, `cv-make:dev` for development). If `$CV_MAKE_CONTAINER_IMAGE` is unset or empty upon wrapper invocation, execution halts immediately with an error diagnostic on `STDERR` instructing the user to run the appropriate installer or export the variable.
+* **Environment-Bound Self-Healing Mechanics:** The host CLI wrapper script dynamically inspects local container storage prior to execution for the container image specified by `$CV_MAKE_CONTAINER_IMAGE`. If the image is missing (e.g., purged via `podman system prune`), the wrapper automatically pulls or restores the exact image designated by `$CV_MAKE_CONTAINER_IMAGE`, writing progress logs strictly to `STDERR`.
 
-#### Requirement 16: Multi-Channel Uninstallation Architecture
+#### Requirement 16: Isolated Wrapper-Driven Uninstallation Architecture
 
-* **CLI Flag Uninstallation:** Execution of `cv-make --uninstall` purges the container image from local storage and removes executable wrappers from `~/.local/bin`.
+* **Wrapper-Centric Teardown:** Uninstallation logic is embedded directly within the host executable wrapper (`~/.local/bin/cv-make`).
+* **Targeted CLI Flag Uninstallation:** Execution of `cv-make --uninstall` evaluates the active `$CV_MAKE_CONTAINER_IMAGE` environment variable and forcefully purges strictly the specific container image pointed to by `$CV_MAKE_CONTAINER_IMAGE` from local container engine storage. It then removes and unlinks the host wrapper script itself (`~/.local/bin/cv-make`).
+* **Cross-Environment Isolation Safety:** By purging exclusively the image declared in `$CV_MAKE_CONTAINER_IMAGE`, uninstallation prevents accidental deletion of parallel container caches (e.g., preserving a host production image when uninstalling a development container setup, or vice versa).
+* **Rootless Cleanup:** Teardown executes entirely in user space without requiring elevated administrative privileges.
 
-#### Requirement 17: Minimal System Prerequisites
+#### Requirement 17: Identifier-Driven Container Lifecycle & Update Engine
+
+* **Image Reference Parsing:** Executing `cv-make --update` (or alias `cv-make --upgrade`) evaluates the `$CV_MAKE_CONTAINER_IMAGE` environment variable to determine whether the target image is a remote network-addressable registry reference or a local image tag, operating completely decoupled from environment classifications or installer logic.
+* **Remote Registry Synchronization:** If `$CV_MAKE_CONTAINER_IMAGE` represents a remote registry reference (containing domain or registry namespace components, e.g., `ghcr.io/<owner>/cv-make:latest`), the wrapper queries the remote registry and pulls the latest container image layers (`$ENGINE pull "$CV_MAKE_CONTAINER_IMAGE"`).
+* **Local Tag Update Guardrail:** If `$CV_MAKE_CONTAINER_IMAGE` is a local image tag without a remote registry host (e.g., `cv-make:dev` or local `cv-make:latest`), the wrapper bypasses remote network pull attempts. It emits an explicit diagnostic message to `STDERR` stating that local image tags cannot be fetched from a remote registry and advising the user to refresh the setup locally (e.g., via idempotent `./install_dev.sh` execution), exiting with status code 1.
+* **Wrapper Preservation:** The update procedure refreshes the targeted container image layers in local container storage without altering, deleting, or re-creating the host wrapper executable binary (`~/.local/bin/cv-make`).
+* **Stream Discipline:** All progress indicators, diagnostic logs, and status notifications during update operations are written strictly to `STDERR`, exiting with status code 0 upon successful completion of a remote registry pull.
+
+#### Requirement 18: Minimal System Prerequisites
 
 * **Host Prerequisites:** The host system requires only a functional container engine (Podman or Docker) and a POSIX-compliant shell interpreter (Bash/Sh).
 
-#### Requirement 18: Project Identity & Binary Naming
+#### Requirement 19: Project Identity & Binary Naming
 
 * **Binary Naming:** The host executable wrapper shall be named `cv-make`.
 * **Project Identity:** Official project naming designated as **CV Make**.
 
-#### Requirement 19: ATS Text Stream & Vector Output Compliance
+#### Requirement 20: ATS Text Stream & Vector Output Compliance
 
 * **Vector Text Stream Preservation:** The compiled output PDF document must maintain an un-rasterized, vector text stream. Document text layers must never be converted into bitmap images or obfuscated with custom non-standard glyph maps.
 * **Semantic Unicode Extraction:** The visual layout must preserve a natural logical reading order matching the source Markdown document structure, ensuring that standard text extraction utilities (`pdftotext`) and automated recruitment platforms (e.g., Lever, Greenhouse, Workday) extract clean, ungarbled Unicode text.
@@ -168,7 +188,10 @@ The `cv-make` utility operates as an intuitive, POSIX-compliant command-line too
 #### Command-Line Signature
 
 ```bash
-cv-make [INPUT.md] [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [--out OUTPUT.pdf] [-v|--verbose] [--uninstall] [--help]
+cv-make [INPUT.md] [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [--out OUTPUT.pdf] [-v|--verbose]
+cv-make --update | --upgrade
+cv-make --uninstall
+cv-make -h | --help
 ```
 
 #### Parameter Map & Arguments Definition
@@ -188,8 +211,10 @@ cv-make [INPUT.md] [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [--out OUTP
     * If omitted, or if an explicit `-` is passed (`--out -`), `cv-make` writes the binary PDF stream directly to `STDOUT`.
 * **`--verbose`, `-v` (Flag Option, Optional):**
     * Enables detailed diagnostic output. When passed, Python logging is set to `DEBUG` level, outputting internal engine events, WeasyPrint layout milestones, font resolution details, and CSS parsing logs directly to `STDERR`.
+* **`--update`, `--upgrade` (Flag Option, Optional):**
+    * Triggers an online update operation, pulling the latest container image layer from GitHub Container Registry (GHCR) into local container storage while preserving the host wrapper script executable.
 * **`--uninstall` (Flag Option, Optional):**
-    * Triggers the automated uninstallation workflow, purging the container image from local storage and unlinking the local wrapper executable scripts from `~/.local/bin`.
+    * Triggers the automated uninstallation workflow, purging the container image from local storage and unlinking the local wrapper executable script from `~/.local/bin`.
 * **`--help`, `-h` (Flag Option, Optional):**
     * Displays command-line usage syntax, available parameters, and version information, then exits immediately with status code `0`.
 
@@ -275,38 +300,82 @@ Once an engine is selected, the host wrapper invokes the container image (`ghcr.
 
 ### 2.3 Installation & Wrapper Lifecycle
 
-The installation and lifecycle management of `cv-make` are designed around a zero-privilege, rootless paradigm. Installation executes entirely in user space, requiring no administrative (`root` or `sudo`) privileges, while ensuring host system cleanliness and seamless PATH integration across Linux and POSIX-compliant environments.
+The installation and lifecycle management of `cv-make` are designed around a zero-privilege, rootless paradigm. Installation executes entirely in user space, requiring no administrative (`root` or `sudo`) privileges, while ensuring host system cleanliness and seamless `PATH` integration across Linux and POSIX-compliant environments.
 
-#### Scripted Installer Architecture
+#### Dual-Installer & Immutable Wrapper Architecture
 
-The repository provides a universal, zero-dependency installer script located at the repository root:
+The repository provides two distinct, purpose-driven installation mechanisms alongside an immutable host wrapper:
 
-* **`install.sh` (Linux / POSIX Bash):** Orchestrates container image verification, wrapper binary generation, and user shell environment (`PATH`) configuration for Linux desktops and servers (optimized for Debian 13 Trixie, Ubuntu, RHEL, and Fedora).
+* **Production Standalone Installer (`install.sh`):** A lightweight, zero-dependency installation script designed for end-users. It downloads the released wrapper binary archive (`.tar.gz`) directly from GitHub Releases, pulls the official container image from GitHub Container Registry (GHCR), and automatically configures `export CV_MAKE_CONTAINER_IMAGE="ghcr.io/<owner>/cv-make:latest"` in the user's active shell profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`). It operates independently of the source repository.
+* **Developer Repository Installer (`install_dev.sh`):** Maintained in the repository root for contributors. It builds the development container image locally from the workspace `Dockerfile` (tagged explicitly as `cv-make:dev`), installs the repository's `bin/cv-make` executable directly into `~/.local/bin/cv-make`, and automatically configures `export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` in the user's active shell profile.
+* **Immutable Host Wrapper (`bin/cv-make`):** A static, non-templated POSIX Bash executable script. It possesses no embedded default container image identifier and relies strictly on the `$CV_MAKE_CONTAINER_IMAGE` environment variable defined in the host shell environment. If `$CV_MAKE_CONTAINER_IMAGE` is unset or empty upon execution, the wrapper immediately halts with exit code 1, emitting an error diagnostic strictly to `STDERR` instructing the user to run the appropriate installer or export the variable.
 
-#### Installation Execution Workflow
+#### Production Installation Execution Workflow (`install.sh`)
 
-When `install.sh` is executed, it performs the following sequential lifecycle steps:
+When `install.sh` is executed in a standalone production context, it performs the following sequential steps:
 
 1. **Pre-flight Container Engine Verification:**
-    * The installer verifies the presence of an active, functional container engine (Podman or Docker) using the auto-detection algorithm defined in Section 2.2.
-    * If no responsive container engine is detected, installation halts immediately, emitting an error diagnostic strictly to `STDERR`.
-2. **Container Image Purge & Fresh Pull Enforcement:**
-    * To guarantee that the local environment is updated to the latest release and to prevent stale image caching issues, the installer checks local container storage for existing `cv-make:latest` or `ghcr.io/<user>/cv-make:latest` images.
-    * If an existing image is found, the installer purges it (`podman rmi -f`).
-    * The installer then pulls a fresh container image directly from the public GitHub Container Registry (`podman pull ghcr.io/<user>/cv-make:latest`).
-3. **Local Wrapper Executable Creation (`~/.local/bin/cv-make`):**
-    * Creates the target directory `~/.local/bin` if it does not exist in the user's home workspace.
-    * Generates an executable POSIX Bash wrapper script (`~/.local/bin/cv-make`) that encapsulates engine invocation, standard stream piping, argument proxying, and volume mounting.
+    * Verifies the presence of an active, functional container engine (Podman or Docker) using the auto-detection algorithm defined in Section 2.2.
+    * If no responsive container engine is detected, installation halts immediately with exit code 1, emitting an error diagnostic strictly to `STDERR`.
+2. **Duplicate Installation Guard:**
+    * Inspects `~/.local/bin/cv-make` for an existing installation.
+    * If present and no `--reinstall` / `--repair` flag was supplied, halts execution with exit code 0 and instructs the user on update/repair options.
+3. **Container Image Acquisition:**
+    * Pulls the latest production image directly from GHCR (`podman pull ghcr.io/<owner>/cv-make:latest`).
+4. **Standalone Wrapper Binary Download & Deployment:**
+    * Fetches the official release package (`cv-make-linux-amd64.tar.gz`) from GitHub Release assets.
+    * Extracts `cv-make` directly into `~/.local/bin/`.
     * Grants executable permissions (`chmod +x ~/.local/bin/cv-make`).
-    * Inspects the user's shell configuration (`~/.bashrc`, `~/.zshrc`, or `~/.profile`) to ensure `~/.local/bin` is present in the `PATH` environment variable, emitting non-intrusive PATH guidance to `STDERR` if action is required.
+5. **Automated Shell PATH & Environment Configuration:**
+    * Inspects the host user's active shell profile configuration (`~/.bashrc`, `~/.zshrc`, or `~/.profile`).
+    * Appends `export PATH="$HOME/.local/bin:$PATH"` if `~/.local/bin` is absent from `$PATH`.
+    * Appends `export CV_MAKE_CONTAINER_IMAGE="ghcr.io/<owner>/cv-make:latest"` if `$CV_MAKE_CONTAINER_IMAGE` is not yet configured in the shell profile.
+    * Emits an informative log to `STDERR` notifying the user that shell environment scripts were updated and recommending a session restart or running `source ~/.bashrc` (or equivalent) for immediate availability.
 
-#### Self-Healing Runtime Mechanics
+#### Developer Installation Execution Workflow (`install_dev.sh`)
 
-To protect against accidental image loss (e.g., when a developer runs `podman system prune -a` or `docker system prune -a` to reclaim disk space), the host wrapper script implements a self-healing recovery mechanism:
+When `install_dev.sh` is executed inside a cloned source repository:
 
-1. **Pre-Execution Cache Inspection:** Upon every invocation of `cv-make`, the wrapper performs a lightweight, local inspection query (`podman image exists ghcr.io/<user>/cv-make:latest`).
-2. **On-Demand Image Recovery:** If the container image is missing from local storage, the wrapper pauses execution, outputs a restoration notice strictly to `STDERR` (`[cv-make] Image missing. Restoring from GHCR...`), and automatically executes `podman pull ghcr.io/<user>/cv-make:latest`.
-3. **Execution Continuity:** Once restored, document compilation proceeds immediately without user intervention, ensuring high availability and zero-maintenance CLI operations.
+1. **Container Engine & Workspace Verification:** Validates the active container engine (Podman or Docker) and verifies the presence of local `Dockerfile` and `bin/cv-make` source files.
+2. **Local Container Image Build:** Compiles the development container image locally from the workspace `Dockerfile`, tagging it explicitly as `cv-make:dev` (`podman build -t cv-make:dev .`).
+3. **Local Wrapper Deployment:** Copies the repository's static executable wrapper `bin/cv-make` directly to `~/.local/bin/cv-make` and sets executable permissions (`chmod +x ~/.local/bin/cv-make`).
+4. **Automated Shell PATH & Environment Configuration:** Evaluates the user's active shell profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`):
+    * Appends `export PATH="$HOME/.local/bin:$PATH"` if `~/.local/bin` is missing from `$PATH`.
+    * Appends `export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` if `$CV_MAKE_CONTAINER_IMAGE` is not yet configured, ensuring all CLI wrapper invocations in the development environment target the local `cv-make:dev` container image.
+
+#### Reinstallation & Repair Mechanics (`--reinstall` / `--repair`)
+
+When invoked with `--reinstall` or `--repair` (`./install.sh --reinstall` or `./install_dev.sh --reinstall`), the installer bypasses the duplicate installation guardrail and initiates an automated repair sequence:
+
+1. **Pre-installation Teardown:** If `~/.local/bin/cv-make` exists, the installer executes `~/.local/bin/cv-make --uninstall`. The wrapper evaluates the active `$CV_MAKE_CONTAINER_IMAGE` environment variable, forcefully purges the targeted container image from local storage, and removes the host wrapper script.
+2. **Fresh Environment Deployment:** Re-executes the full installation pipeline (container image acquisition or local build), deploys a fresh static wrapper binary to `~/.local/bin/cv-make` without text substitution, grants executable permissions, and validates shell profile exports (`PATH` and `$CV_MAKE_CONTAINER_IMAGE`).
+
+#### Strict Container Image Environment Binding
+
+The executable wrapper (`~/.local/bin/cv-make`) is entirely environment-driven and possesses no embedded fallback container image name. It resolves the target container image at runtime strictly from the `$CV_MAKE_CONTAINER_IMAGE` environment variable:
+
+```bash
+IMAGE_NAME="$CV_MAKE_CONTAINER_IMAGE"
+if [ -z "$IMAGE_NAME" ]; then
+    echo "[ERROR] \$CV_MAKE_CONTAINER_IMAGE environment variable is not set!" >&2
+    echo "Please run install.sh / install_dev.sh or export CV_MAKE_CONTAINER_IMAGE in your shell." >&2
+    exit 1
+fi
+```
+
+* **Production Deployment Context:** Configured automatically during `./install.sh` execution (`export CV_MAKE_CONTAINER_IMAGE="ghcr.io/<owner>/cv-make:latest"` appended to `~/.bashrc`, `~/.zshrc`, or `~/.profile`).
+* **Development Deployment Context:** Configured automatically during `./install_dev.sh` execution (`export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` appended to the user's active shell profile).
+* **Ad-hoc Runtime Overrides:** Users or automated integration test suites can dynamically target an arbitrary container image per invocation by prefixing the command without modifying persistent shell configurations (e.g., `CV_MAKE_CONTAINER_IMAGE="cv-make:test" cv-make CV.md`).
+
+#### Identifier-Aware Self-Healing Runtime Mechanics
+
+To protect against accidental image loss (e.g., when a user or system process executes `podman system prune -a` or `docker system prune -a` to reclaim disk space), the host wrapper script performs a pre-execution cache check for `$IMAGE_NAME`:
+
+1. **Pre-Execution Cache Inspection:** Queries local engine storage for the active image (`$ENGINE image exists "$IMAGE_NAME"` or inspect query).
+2. **On-Demand Recovery Strategy:**
+    * **Remote Registry References (containing registry domain/path components, e.g., `ghcr.io/<owner>/cv-make:latest`):** If missing from local storage, the wrapper pauses document compilation, emits a restoration notice to `STDERR` (`[cv-make] Image missing. Restoring from registry...`), and automatically pulls the image via `$ENGINE pull "$IMAGE_NAME"`.
+    * **Local Image Tags (e.g., `cv-make:dev`):** If missing from local storage, the wrapper halts execution with exit code 1, emitting an error diagnostic strictly to `STDERR` stating that local image tags cannot be fetched from a remote registry and advising the user to rebuild the development image locally (e.g., via `./install_dev.sh`).
+3. **Execution Continuity:** For remote registry images, document processing resumes immediately upon successful layer restoration, ensuring zero-maintenance CLI operational continuity.
 
 ### 2.4 Uninstallation Procedure
 
@@ -314,31 +383,33 @@ The uninstallation procedure for `cv-make` is designed to be complete, non-intru
 
 #### Uninstallation Entry Point
 
-Uninstallation is initiated exclusively via a dedicated command-line flag:
+Uninstallation is initiated exclusively via the host executable wrapper:
 
-* **CLI Flag Invocation (`cv-make --uninstall`):** Direct command-line invocation by the end-user.
+* **CLI Flag Invocation (`cv-make --uninstall`):** Direct command-line invocation executed by the end-user.
 
-*(Note: To maintain a single source of truth for software lifecycle management, uninstallation logic is embedded directly within the `cv-make` wrapper binary, eliminating the need for separate uninstallation options in repository installer scripts).*
+*(Note: To maintain a single source of truth for software lifecycle management, uninstallation logic is embedded directly within the `cv-make` wrapper binary template (`bin/cv-make`), eliminating standalone uninstallation options from repository installer scripts. When `install.sh --reinstall` is invoked, it leverages this exact entry point to clean pre-existing installations).*
 
 #### Teardown Execution Sequence
 
-When `cv-make --uninstall` is executed, the teardown sequence performs the following steps:
+When `cv-make --uninstall` is executed, the teardown sequence performs the following steps in sequence:
 
-1. **Active Container Runtime Detection:**
+1. **Environment Validation & Container Runtime Detection:**
     * Evaluates system availability of Podman or Docker using the auto-detection algorithm defined in Section 2.2.
-2. **Container Image Purge:**
-    * Queries local container storage for existing `ghcr.io/<user>/cv-make:latest` and local `cv-make:latest` image layers.
-    * Forcefully purges identified images (`$ENGINE rmi -f <image_id>`) to reclaim host disk space.
-3. **User-Space Binary Teardown:**
-    * Removes and unlinks the host executable wrapper script located at `~/.local/bin/cv-make`.
+    * Inspects the host environment for the active `$CV_MAKE_CONTAINER_IMAGE` variable. If `$CV_MAKE_CONTAINER_IMAGE` is unset or empty, uninstallation halts immediately with exit code 1, writing an error message strictly to `STDERR` instructing the user to set or export `$CV_MAKE_CONTAINER_IMAGE`.
+2. **Isolated Container Image Purge:**
+    * Reads the container image tag explicitly declared in `$CV_MAKE_CONTAINER_IMAGE` (e.g., `ghcr.io/<owner>/cv-make:latest` or `cv-make:dev`).
+    * Forcefully purges strictly the target container image layer from local engine storage (`$ENGINE rmi -f "$CV_MAKE_CONTAINER_IMAGE"` 2>/dev/null || true) to reclaim disk space without affecting parallel container builds or unrelated images.
+3. **User-Space Binary Teardown (Self-Removal):**
+    * Removes and unlinks the executing host executable wrapper script itself (`rm -f "$0"`), purging `~/.local/bin/cv-make` from user space without requiring elevated administrative (`root` or `sudo`) privileges.
 
 #### Exit Verification & Diagnostics
 
 Upon successful completion, the uninstallation process outputs a status confirmation message strictly to `STDERR`:
 
 ```text
+[cv-make] Initiating uninstallation...
 [cv-make] Uninstallation complete.
-Container image purged and executable wrapper successfully removed from ~/.local/bin/cv-make.
+Container image purged and executable wrapper successfully removed.
 ```
 
 ## 3. DTP Layout & CSS Styling Engine
@@ -714,64 +785,62 @@ The release automation pipeline implemented via GitHub Actions (`.github/workflo
 
 ### 4.5 Local Development & Testing Workflow
 
-Section 4.5 outlines the development, local execution, and Quality Assurance (QA) testing workflows for contributors working on the `cv-make` codebase. It provides explicit guidelines for rapid local iteration, source code mounting without container rebuilds, and ATS compliance validation.
+Section 4.5 outlines the development, local execution, and Quality Assurance (QA) testing workflows for contributors working on the `cv-make` codebase. It provides explicit guidelines for rapid local iteration, developer environment setup via `install_dev.sh`, source code mounting, and ATS compliance validation.
 
-#### Local Development Environments
+#### Developer Environment Setup (`install_dev.sh`)
 
-Developers are encouraged to use **Podman** (or Docker in rootless mode) as their primary container engine during local development on POSIX/Linux desktop environments (e.g., Debian 13 Trixie, Ubuntu, Fedora, or RHEL).
+Contributors developing or testing changes locally within the cloned Git repository should initialize their environment using the developer installer script:
 
-#### Rapid Iteration Cycle (Hot Source Mounting)
+```bash
+./install_dev.sh
+```
 
-When modifying the preprocessor Python script (`cv_make.py`) or the base stylesheet (`styles/default.css`), developers can test live code changes instantly without triggering time-consuming container image rebuilds (`podman build`).
+This idempotent script builds the local development container image (`cv-make:dev`), installs the repository's static executable wrapper `bin/cv-make` into `~/.local/bin/cv-make`, configures `~/.local/bin` in `$PATH`, and automatically exports `CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` in the user's active shell startup profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`).
 
-1. **Local Dev Container Build:**
-    Build a local development image tagged as `cv-make:dev`:
+#### Rapid Iteration Cycle (Hot Source Mounting & Image Overrides)
+
+When modifying the preprocessor Python script (`src/cv_make.py`) or the base stylesheet (`src/styles/default.css`), developers can test live code changes instantly without triggering time-consuming container image rebuilds:
+
+1. **Local Dev Container Build & Refresh:**
+    To refresh or build the development container image layer, developers can either re-run the idempotent developer installer or execute a direct container engine build:
     ```bash
+    ./install_dev.sh
+    # Or directly via container engine:
     podman build -t cv-make:dev .
     ```
-2. **Source-Mounted Execution:**
-    Mount local development files directly over the container's `/app` directory in read-only mode to execute live code changes instantly with optional diagnostic logging (`-v`):
+2. **Hot Source-Mounted Execution:**
+    Mount local development source files (`src/`) directly over the container's `/app` directory in read-only mode to execute live preprocessor and stylesheet changes instantly against the active `$CV_MAKE_CONTAINER_IMAGE`:
     ```bash
     podman run -i --rm \
-        -v "$(pwd)/src:/app:ro,z" \
-        -v "$(pwd)/sample_photo.jpg:/tmp/assets/photo.jpg:ro,z" \
-        cv-make:dev --photo /tmp/assets/photo.jpg -v < CV.md > output_test.pdf
+      -v "$(pwd)/src:/app:ro,z" \
+      "$CV_MAKE_CONTAINER_IMAGE" --verbose < CV.md > output_test.pdf
+    ```
+3. **Wrapper Integration Testing with Development Build:**
+    Test the installed host wrapper directly. Since `install_dev.sh` exports `CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` in the shell environment, `cv-make` automatically binds to the local development container:
+    ```bash
+    cv-make CV.md -o output_test.pdf -v
+    ```
+    *Note on Ad-hoc Overrides:* Developers can also explicitly test the wrapper against alternative container builds or temporary tags on the fly by prefixing the environment variable per invocation:
+    ```bash
+    CV_MAKE_CONTAINER_IMAGE="cv-make:test" cv-make CV.md -o output_test.pdf -v
     ```
 
 #### Manual CV Generation Validation Protocol
 
-Before submitting code changes or tagging a new release, developers must execute a three-step validation suite:
+Before submitting code changes or tagging a new release, developers must execute the standard three-step validation suite:
 
 1. **Visual Layout, Font & Pagination Inspection:**
     * Verify page boundaries and check that `@page` margins prevent orphan headings or artificial empty gaps on intermediate pages.
-    * Confirm that embedded fonts render strictly in `IBM Plex Sans` (verifiable via `pdffonts output_test.pdf`) without silent fallbacks to `DejaVu`.
-    * Verify that company and role titles in `H3`/`H4` headers render with distinct visual weight (`font-weight: 500` for italicized roles).
+    * Confirm that embedded fonts render strictly in IBM Plex Sans (verifiable via `pdffonts output_test.pdf`) without silent fallbacks to DejaVu.
+    * Verify that company and role titles in H3/H4 headers render with distinct visual weight (font-weight: 500 for italicized roles).
     * Confirm that right-aligned date blocks (`.flex-line`) align flush to the right page margin.
     * Verify that the GDPR section (`#gdpr-clause`) suppresses the H2 heading and renders as a compact, italicized footer block.
 2. **ATS Text Extraction Check (`pdftotext`):**
-    Execute `pdftotext` to confirm that the generated PDF preserves a clean Unicode text stream without scrambled glyphs or missing section headers:
-    ```bash
-    pdftotext output_test.pdf - | head -n 40
-    ```
-    *Expected Result:* Clean, human-readable plain text matching the logical Markdown reading order.
+    * Execute `pdftotext` to confirm that the generated PDF preserves a clean Unicode text stream without scrambled glyphs or missing section headers:
+        ```bash
+        pdftotext output_test.pdf - | head -n 30
+        ```
+    * **Expected Result:** Clean, human-readable plain text matching the logical Markdown reading order.
 3. **Hyperlink & Navigation Audit:**
     * Inspect interactive URI annotations for email addresses (`mailto:`), LinkedIn profiles, and GitHub repositories using a standard PDF viewer.
     * Confirm all links remain clickable and visually highlighted without breaking layout geometry.
-
-#### Installer & Wrapper Local Smoke Testing
-
-To test the host wrapper installation and teardown workflow locally on Linux/POSIX systems:
-
-```bash
-# Execute local installation script
-./install.sh
-
-# Verify binary availability in local PATH
-~/.local/bin/cv-make --help
-
-# Test sample compilation with verbose diagnostic output
-cv-make CV.md --photo photo.jpg --out test.pdf -v
-
-# Verify uninstallation via CLI flag
-cv-make --uninstall
-```

@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+#
+# CV Make Host Wrapper Script
+# SPDX-FileCopyrightText: 2026 Marcin Kaim
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set -e
+
+INPUT="-"
+PHOTO=""
+STYLES=()
+OUT="-"
+UNINSTALL=0
+UPDATE=0
+HELP=0
+VERBOSE=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            HELP=1
+            shift
+            ;;
+        --uninstall)
+            UNINSTALL=1
+            shift
+            ;;
+        --update|--upgrade)
+            UPDATE=1
+            shift
+            ;;
+        -v|--verbose)
+            VERBOSE=1
+            shift
+            ;;
+        -p|--photo)
+            PHOTO="$2"
+            shift 2
+            ;;
+        -s|--style)
+            STYLES+=("$2")
+            shift 2
+            ;;
+        -o|--out)
+            OUT="$2"
+            shift 2
+            ;;
+        -*)
+            echo "[ERROR] Unknown option $1" >&2
+            exit 1
+            ;;
+        *)
+            INPUT="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ "$HELP" -eq 1 ]; then
+    echo "CV Make - Automated ATS-Compliant PDF CV Builder"
+    echo "Usage:"
+    echo "  cv-make [INPUT.md] [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [--out OUTPUT.pdf] [-v]"
+    echo "  cv-make --update"
+    echo "  cv-make --uninstall"
+    echo "  cv-make --help"
+    echo ""
+    echo "Options:"
+    echo "  INPUT.md                  Optional source Markdown file. Defaults to STDIN."
+    echo "  -p, --photo IMAGE_PATH    Optional path to portrait photograph."
+    echo "  -s, --style STYLESHEET    Optional, repeatable path to override CSS stylesheet."
+    echo "  -o, --out OUTPUT.pdf      Optional output PDF destination. Defaults to STDOUT."
+    echo "  -v, --verbose             Enable detailed diagnostic logging to STDERR."
+    echo "  --update, --upgrade       Pull the latest container image from GHCR."
+    echo "  --uninstall               Uninstalls the container image and binary wrapper."
+    echo "  -h, --help                Displays this help screen."
+    exit 0
+fi
+
+detect_engine() {
+    if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+        echo "podman"
+    elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        echo "docker"
+    else
+        echo ""
+    fi
+}
+
+ENGINE=$(detect_engine)
+if [ -z "$ENGINE" ]; then
+    echo "[ERROR] No active container engine detected!" >&2
+    echo "cv-make requires a functional Podman or Docker environment." >&2
+    exit 1
+fi
+
+IMAGE_NAME="$CV_MAKE_CONTAINER_IMAGE"
+if [ -z "$IMAGE_NAME" ]; then
+    echo "[ERROR] \$CV_MAKE_CONTAINER_IMAGE environment variable is not set!" >&2
+    echo "Please run install.sh / install_dev.sh or export CV_MAKE_CONTAINER_IMAGE in your shell." >&2
+    exit 1
+fi
+
+is_remote_image() {
+    [[ "$1" == *"/"* ]]
+}
+
+# Logic for updating container image
+if [ "$UPDATE" -eq 1 ]; then
+    if is_remote_image "$IMAGE_NAME"; then
+        echo "[cv-make] Updating container image $IMAGE_NAME..." >&2
+        if $ENGINE pull "$IMAGE_NAME"; then
+            echo "[cv-make] Successfully updated to the latest container image." >&2
+            exit 0
+        else
+            echo "[ERROR] Failed to pull updated image from registry." >&2
+            exit 1
+        fi
+    else
+        echo "[ERROR] Local image tags cannot be fetched from a remote registry." >&2
+        echo "To update local development builds, please re-run ./install_dev.sh" >&2
+        exit 1
+    fi
+fi
+
+# Logic for uninstallation
+if [ "$UNINSTALL" -eq 1 ]; then
+    echo "[cv-make] Initiating uninstallation..." >&2
+    $ENGINE rmi -f "$IMAGE_NAME" 2>/dev/null || true
+    rm -f "$0"
+    echo "[cv-make] Uninstallation complete." >&2
+    echo "Container image purged and executable wrapper successfully removed." >&2
+    exit 0
+fi
+
+# Self-healing logic
+IMAGE_EXISTS=0
+if [ "$ENGINE" = "podman" ]; then
+    podman image exists "$IMAGE_NAME" 2>/dev/null && IMAGE_EXISTS=1
+else
+    docker image inspect "$IMAGE_NAME" >/dev/null 2>&1 && IMAGE_EXISTS=1
+fi
+
+if [ "$IMAGE_EXISTS" -eq 0 ]; then
+    if is_remote_image "$IMAGE_NAME"; then
+        echo "[cv-make] Image missing. Restoring from registry..." >&2
+        if ! $ENGINE pull "$IMAGE_NAME"; then
+            echo "[ERROR] Failed to restore container image $IMAGE_NAME" >&2
+            exit 1
+        fi
+    else
+        echo "[ERROR] Local container image '$IMAGE_NAME' is missing from host storage!" >&2
+        echo "Local image tags cannot be restored automatically from a remote registry." >&2
+        echo "Please rebuild the image locally (e.g., via ./install_dev.sh)." >&2
+        exit 1
+    fi
+fi
+
+CONTAINER_ARGS=()
+MOUNTS=()
+
+if [ "$VERBOSE" -eq 1 ]; then
+    CONTAINER_ARGS+=("--verbose")
+fi
+
+if [ -n "$PHOTO" ]; then
+    if [ ! -f "$PHOTO" ]; then
+        echo "[ERROR] Photo file not found at path: $PHOTO" >&2
+        exit 1
+    fi
+    ABS_PHOTO=$(realpath "$PHOTO")
+    PHOTO_EXT="${ABS_PHOTO##*.}"
+    CONTAINER_PHOTO="/tmp/assets/photo.$PHOTO_EXT"
+    MOUNTS+=("-v" "$ABS_PHOTO:$CONTAINER_PHOTO:ro,z")
+    CONTAINER_ARGS+=("--photo" "$CONTAINER_PHOTO")
+fi
+
+STYLE_INDEX=0
+for STYLE in "${STYLES[@]}"; do
+    if [ ! -f "$STYLE" ]; then
+        echo "[ERROR] Stylesheet file not found at path: $STYLE" >&2
+        exit 1
+    fi
+    ABS_STYLE=$(realpath "$STYLE")
+    CONTAINER_STYLE="/tmp/assets/style_$(printf "%02d" $STYLE_INDEX).css"
+    MOUNTS+=("-v" "$ABS_STYLE:$CONTAINER_STYLE:ro,z")
+    CONTAINER_ARGS+=("--style" "$CONTAINER_STYLE")
+    STYLE_INDEX=$((STYLE_INDEX + 1))
+done
+
+# Launch container with stream piping
+if [ "$INPUT" = "-" ]; then
+    if [ "$OUT" = "-" ]; then
+        $ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}"
+    else
+        $ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}" > "$OUT"
+    fi
+else
+    if [ ! -f "$INPUT" ]; then
+        echo "[ERROR] Input Markdown file not found at path: $INPUT" >&2
+        exit 1
+    fi
+    if [ "$OUT" = "-" ]; then
+        $ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}" < "$INPUT"
+    else
+        $ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}" < "$INPUT" > "$OUT"
+    fi
+fi
