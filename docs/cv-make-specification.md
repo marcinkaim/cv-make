@@ -751,37 +751,59 @@ The image build pipeline defined in `Dockerfile` must satisfy the following decl
 2. **Virtual Environment Isolation:** Python dependencies are compiled inside an isolated virtual environment (`/opt/venv`), avoiding conflicts with Debian system Python packages and ensuring reproducible dependency resolution.
 3. **Rootless Execution Compatibility:** The container entrypoint executes without requiring root privileges or file-write permissions on the host, ensuring safe rootless execution under Podman and Docker.
 
-### 4.4 GitHub CI/CD & Distribution via GHCR
+### 4.4 GitHub CI/CD, GHCR & Release Asset Distribution
 
-To guarantee automated, repeatable builds and effortless software distribution, `cv-make` leverages GitHub Actions and the GitHub Container Registry (GHCR). Whenever source code updates are merged into the default branch or new release tags are created, the CI/CD pipeline automatically builds, verifies, and publishes container images to `ghcr.io`.
+To guarantee automated, repeatable builds, immutable container delivery, and effortless host software distribution, `cv-make` leverages GitHub Actions, the GitHub Container Registry (GHCR), and GitHub Releases. Whenever source code updates are merged into the default branch or new release tags are created, the automated CI/CD pipeline compiles, verifies, and publishes the production container image to `ghcr.io` as well as the CLI distribution package (comprising the wrapper archive and installation script) to GitHub Releases.
 
-#### Distribution Model & Registry Namespace
+#### Distribution Model & Artifact Specification
 
-* **Target Registry:** GitHub Container Registry (`ghcr.io`).
-* **Image Namespace:** `ghcr.io/<owner>/cv-make`.
-* **Public Package Visibility:** The GHCR package visibility is configured as **Public**. This allows end-users and installation scripts (`install.sh`) to execute unauthenticated container pulls (`podman pull ghcr.io/<owner>/cv-make:latest` or `docker pull`) without requiring `docker login` or GitHub Personal Access Tokens (PATs).
+The release pipeline produces and distributes two distinct categories of production artifacts:
 
-#### Automated Multi-Tagging Strategy
+* **Container Image Layers (GHCR):**
+    * **Target Registry:** GitHub Container Registry (`ghcr.io`).
+    * **Image Namespace:** `ghcr.io/<owner>/cv-make`.
+    * **Package Visibility:** Configured as **Public**, enabling end-users and the production installer (`install.sh`) to execute unauthenticated container pulls (`podman pull ghcr.io/<owner>/cv-make:latest` or `docker pull`) without requiring `docker login` or GitHub Personal Access Tokens (PATs).
+* **CLI Wrapper Archive (`cv-make-linux-amd64.tar.gz`):**
+    * **Format & Structure:** Compressed gzipped tarball (`.tar.gz`) containing the static, non-templated host executable wrapper with directory structure preserved (`bin/cv-make`).
+    * **Immutability:** The archive houses the static executable wrapper binary without hardcoded image names or string placeholders, adhering strictly to environment-driven runtime binding.
+* **Production Installer Script (`install.sh`):**
+    * **Standalone Distribution:** Published as a standalone asset attached directly to GitHub Release entries alongside `cv-make-linux-amd64.tar.gz`.
+    * **Zero-Dependency Installation:** Downloadable via `curl` or `wget` for automated, rootless user-space deployments without requiring repository clones or local build tools.
 
-The workflow enforces a multi-tagging convention based on Git references to support both stability and continuous delivery:
+#### Automated Multi-Tagging & Release Strategy
 
-1. **`latest` Tag:** Automatically updated on every push to the `main` default branch and on every published release tag. Ensures that standard installations and host wrapper self-healing queries always receive the most up-to-date stable build.
-2. **Semantic Version Tags (`vX.Y.Z`, `vX.Y`, `vX`):** Triggered upon pushing Git tags matching the `v*.*.*` pattern (e.g., `v1.0.0`). The workflow generates granular version tags (`1.0.0`, `1.0`, `1`), allowing users to lock onto specific major or minor release channels.
-3. **Git Commit SHA (`sha-XXXXXXX`):** Generates an immutable, traceable tag corresponding to the short Git commit hash, aiding auditability and regression testing.
+The workflow enforces a unified tagging and release strategy based on Git references to support continuous delivery alongside stable release channels:
+
+1. **`latest` Container Tag & Release Alias:**
+    * Automatically updated on every push to the `main` branch and on every published release tag.
+    * Guarantees that standard production installations and self-healing wrapper queries always resolve the most up-to-date stable container image.
+2. **Semantic Version Tags (`vX.Y.Z`, `vX.Y`, `vX`):**
+    * Triggered upon pushing Git tags matching the `v*.*.*` pattern (e.g., `v1.0.0`).
+    * Generates granular version tags (`1.0.0`, `1.0`, `1`) for container images in GHCR and automatically creates a corresponding GitHub Release entry with attached binary artifacts (`cv-make-linux-amd64.tar.gz` and `install.sh`).
+3. **Git Commit SHA (`sha-XXXXXXX`):**
+    * Generates an immutable, traceable tag corresponding to the short Git commit hash for every container build, aiding auditability and regression testing.
 
 #### Automated Build & Release Pipeline Mechanics
 
-The release automation pipeline implemented via GitHub Actions (`.github/workflows/release.yml`) satisfies the following core operational parameters:
+The automation pipeline implemented in `.github/workflows/release.yml` executes the following sequential stages:
 
-* **Execution Triggers:** Automatically invoked on code pushes to the `main` branch, pushes of release tags (`v*.*.*`), or via manual trigger (`workflow_dispatch`).
-* **Automated Container Build & Tagging:** Checks out the repository codebase, initializes container build tools, extracts Git ref metadata to construct output tags, and builds the container image against the root `Dockerfile`.
-* **Container Registry Publishing:** Authenticates securely against `ghcr.io` and pushes the compiled multi-tagged image layers directly to GitHub Container Registry.
-* **Build Caching:** Utilizes GitHub Actions layer caching to accelerate subsequent image compilation jobs.
+* **Execution Triggers:** Automatically invoked on code pushes to `main`, pushes of semantic version tags (`v*.*.*`), or via manual workflow dispatch (`workflow_dispatch`).
+* **Container Image Compilation & Tagging:** Checks out the repository codebase, initializes Docker Buildx, extracts Git reference metadata via `docker/metadata-action`, and compiles the container image against the root `Dockerfile`.
+* **GHCR Container Publishing:** Authenticates securely against `ghcr.io` and pushes the multi-tagged container image layers directly to GitHub Container Registry using `docker/build-push-action`.
+* **Wrapper Archive & Asset Packaging:**
+    * Packages the static wrapper executable (`bin/cv-make`) into `cv-make-linux-amd64.tar.gz`, preserving executable permissions (`chmod +x`) and relative file paths (`bin/cv-make`).
+    * Prepares the production installation script (`install.sh`) for release publication.
+* **GitHub Release Creation & Binary Attachment:**
+    * When triggered by a release tag (`v*.*.*`), creates or updates a GitHub Release entry.
+    * Attaches `cv-make-linux-amd64.tar.gz` and `install.sh` as public downloadable release assets.
+* **Layer Caching:** Utilizes GitHub Actions layer caching (`type=gha`) to accelerate subsequent container image builds.
 
 #### Security & Access Control
 
-* **Ephemeral Credentials:** The workflow utilizes the auto-generated `${{ secrets.GITHUB_TOKEN }}` provided natively by GitHub Actions runtime environment. No long-lived personal access tokens or credentials are required or stored in repository secrets.
-* **Least-Privilege Scoping:** Permissions are strictly scoped at the job level to `contents: read` (for reading source code) and `packages: write` (for publishing container images to GHCR).
+* **Ephemeral Credentials:** Utilizes the auto-generated `${{ secrets.GITHUB_TOKEN }}` provided natively by the GitHub Actions runtime environment. No long-lived personal access tokens or static credentials are stored or exposed.
+* **Least-Privilege Scoping:** Permissions are strictly scoped at the job level:
+    * `contents: write`: Required to create GitHub Release entries, manage release tags, and upload release asset binaries (`cv-make-linux-amd64.tar.gz` and `install.sh`).
+    * `packages: write`: Required to publish container image layers to GitHub Container Registry (`ghcr.io`).
 
 ### 4.5 Local Development & Testing Workflow
 
