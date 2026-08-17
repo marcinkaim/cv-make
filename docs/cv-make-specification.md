@@ -36,28 +36,29 @@ The utility operates via a lightweight host wrapper script installed in the user
 
 Section 1.2 specifies the functional capabilities required of the `cv-make` tool. These requirements govern command-line invocation, stream management, Markdown structural mapping, layout rules, hyperlink handling, diagnostic logging, and presentation decoupling.
 
-#### Requirement 1: Command-Line Interface & Parameter Parsing
+#### Requirement 1: Command-Line Interface, Named Parameter Model & Invocation Syntax
 
-* **CLI Parameter Map:** The utility shall accept arguments for the input Markdown document, an optional profile photograph, optional custom CSS stylesheets, the output PDF destination file path, a verbosity toggle, an online container update trigger, and a self-uninstallation flag.
+* **Strict Named Parameter Model:** The utility shall operate strictly via explicit named command-line options. Positional arguments shall not be accepted. The use of standard stream placeholders (`-`) for input or output is strictly prohibited.
+* **Mandatory Input & Output Options:**
+    * `-i`, `--in INPUT.md`: Mandatory file path specifying the source Markdown document.
+    * `-o`, `--out OUTPUT.pdf`: Mandatory destination file path for the compiled output PDF document.
+* **Zero-Argument Invocation Safeguard:** When invoked without any command-line arguments (`$# -eq 0`), `cv-make` shall immediately display the help and usage screen and exit cleanly with status code `0`, preventing interactive terminal hangs.
 * **Syntax Signature:**
     ```bash
-    cv-make [INPUT.md] [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [--out OUTPUT.pdf] [-v|--verbose]
+    cv-make --in INPUT.md --out OUTPUT.pdf [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [-v|--verbose]
     cv-make --update | --upgrade
     cv-make --uninstall
     cv-make -h | --help
     ```
-* **Multiple Stylesheet Ingestion:** The CLI shall accept multiple `--style` flag invocations. Stylesheets shall be injected in the exact order declared on the command line following the default base stylesheet.
-* **Verbosity Flag:** The CLI shall accept `-v` or `--verbose` flags to enable detailed diagnostic output from the preprocessor and underlying DTP layout engine.
-* **Container Update Flag:** The CLI shall accept `--update` (or alias `--upgrade`) to pull the latest release image from GitHub Container Registry (GHCR) into local container storage.
-* **Uninstallation Flag:** The CLI shall accept `--uninstall` to trigger full teardown of local container images and binary wrappers.
+* **Optional Asset & Presentation Parameters:**
+    * `-p`, `--photo IMAGE_PATH`: Optional path to a candidate portrait photograph (JPEG, PNG, WebP) to render in the header block.
+    * `-s`, `--style STYLESHEET`: Optional and repeatable path to custom CSS stylesheets. Stylesheets shall be injected sequentially following the base stylesheet (`default.css`), adhering strictly to standard CSS cascade priority rules.
+* **Diagnostic Logging & Stream Discipline:** The CLI shall accept `-v` or `--verbose` flags to enable detailed diagnostic output (`DEBUG` logging level). All operational logs, progress notices, container engine messages, and error diagnostics shall be written exclusively to `STDERR` (`>&2`).
+* **Container Lifecycle Commands:**
+    * `--update` (alias `--upgrade`): Triggers a container image refresh from the remote registry into local container storage.
+    * `--uninstall`: Triggers user-space uninstallation, purging the designated container image and removing the host wrapper executable and environment configurations.
 
-#### Requirement 2: Stream Processing & Pipeline Integration
-
-* **Standard Input (STDIN):** If no input file path is provided (or if `-` is specified), `cv-make` shall read the source Markdown content directly from `STDIN`.
-* **Standard Output (STDOUT):** If no output file path (or `--out -`) is specified, `cv-make` shall write the compiled binary PDF document directly to `STDOUT`.
-* **Stream Discipline:** All operational logs, status updates, container runtime notifications, and diagnostic indicators shall be written exclusively to `STDERR` (`>&2`). `STDOUT` must remain strictly unpolluted to guarantee binary PDF validity when redirected in Unix shell pipelines (`cat CV.md | cv-make > output.pdf`).
-
-#### Requirement 3: Section Heading Mapping Hierarchy
+#### Requirement 2: Section Heading Mapping Hierarchy
 
 The document structure shall map strictly to a 4-tier HTML heading hierarchy:
 
@@ -66,22 +67,22 @@ The document structure shall map strictly to a 4-tier HTML heading hierarchy:
 * **H3 (`###`):** Standard Subsections (e.g., primary employer entries with role title and employment dates, university degrees).
 * **H4 (`####`):** Compact Subsections (e.g., historical employer entries, secondary project entries).
 
-#### Requirement 4: Compact Experience Formatting Engine
+#### Requirement 3: Compact Experience Formatting Engine
 
 * **H4 Hierarchy Compacting:** Any subsection marked with an `H4` (`####`) heading shall be rendered in a compact layout mode.
 * **CSS-Driven Compacting:** The Python preprocessor shall wrap `H4` elements and their sibling nodes in a semantic container (`.cv-section.level-4`). Visual compression (tighter margins, reduced font scale, optimized line heights) is applied entirely via CSS without hardcoded section-name checks in the parser code.
 
-#### Requirement 5: Markdown Inline Styling & List Formatting
+#### Requirement 4: Markdown Inline Styling & List Formatting
 
 * **Inline Elements:** Bold (`**text**`), italic (`*text*`), and inline code formatting shall map directly to equivalent HTML5 inline tags (`<strong>`, `<em>`, `<code>`).
 * **List Hierarchies:** Single-level and multi-level nested unordered (`<ul>`/`<li>`) and ordered (`<ol>`/`<li>`) bullet lists shall map directly to native nested HTML list structures, preserving visual indentation and hierarchical bullet markers.
 
-#### Requirement 6: Universal Line Splitting Syntax
+#### Requirement 5: Universal Line Splitting Syntax
 
 * **Single-Purpose Pipe Operator (`|`):** The pipe symbol (`|`) is strictly reserved as an alignment separator across all CV sections.
 * **Syntax Parsing:** The preprocessor shall scan heading nodes (`H3`/`H4`) and standalone paragraphs for the presence of the pipe character (`|`). The pipe character acts as a logical delimiter between left-aligned content (e.g., company and role name) and right-aligned content (e.g., employment date range).
 
-#### Requirement 7: Flexbox Transformation & Right-Aligned Date Engine
+#### Requirement 6: Flexbox Transformation & Right-Aligned Date Engine
 
 * **Flexbox Transformation Rule:** Any Markdown header (`H3`/`H4`) or standalone paragraph containing a pipe (`|`) symbol shall be parsed into a 2-column flexbox container (`<h3 class="flex-line">` or `<div class="flex-line">`):
     ```html
@@ -92,18 +93,18 @@ The document structure shall map strictly to a 4-tier HTML heading hierarchy:
     ```
 * **Unification & Layout Execution:** The pipe symbol is stripped during parsing. The preprocessor extracts child DOM nodes into `.line-left` and `.line-right` spans. The underlying CSS flexbox layout aligns `.line-left` flush left and `.line-right` flush right (`justify-content: space-between`), ensuring precise horizontal alignment across employment and education entries.
 
-#### Requirement 8: Main Header Block & Profile Photo Layout
+#### Requirement 7: Main Header Block & Profile Photo Layout
 
 * **Two-Column Grid Structure:** The top section containing candidate identity and contact metadata shall be generated as a 2-column container (`<header class="header-main">`).
 * **Left Column:** Contains H1 candidate name, professional title, location, language levels, and interactive contact/profile links (`<div class="header-left">`).
 * **Right Column:** Contains the portrait photograph supplied via `--photo` (`<div class="header-right">`). The container applies fixed width and height dimensions with `object-fit: cover`. If no photo argument is supplied, the left column automatically expands to fill 100% of the header width.
 
-#### Requirement 9: Interactive Hyperlink Processing
+#### Requirement 8: Interactive Hyperlink Processing
 
 * **Markdown Notation:** Hyperlinks shall be recognized from standard Markdown link syntax, such as `[github.com/username](https://github.com/username)` or `[LinkedIn Profile](https://linkedin.com/in/username)`.
 * **URI Annotations:** Links shall be rendered as native URI annotations within the PDF document, preserving clickability, visual link highlighting, and full navigation support for both human readers and ATS software.
 
-#### Requirement 10: Structural Abstraction, Multi-Level Slugification & CSS Cascade Engine
+#### Requirement 9: Structural Abstraction, Multi-Level Slugification & CSS Cascade Engine
 
 * **Minimal Structural Awareness:** The Python preprocessor remains agnostic to specific section titles, handling layout and DOM enrichment strictly via heading hierarchy levels (H1 through H4) and generic pipe syntax.
 * **Automated Multi-Level Section Wrapping & Slugification:** Every section and subsection at all heading levels (H1, H2, H3, and H4) shall be encapsulated within semantic containers (`<section class="cv-section level-{n}" id="{slug}" data-title="{title}">`). The `id` slug is algorithmically generated across all levels by:
@@ -114,7 +115,7 @@ The document structure shall map strictly to a 4-tier HTML heading hierarchy:
         *(Example: `### Independent R&D / Open Source Projects | 08.2025 – present` -> `id="independent-r-d-open-source-projects-08-2025-present"`)*.
 * **Cascading Stylesheet Inheritance:** The document compilation shall **always** load the embedded base stylesheet (`default.css`) first. Any custom user stylesheets provided via `--style` flags shall be injected sequentially afterward, enabling users to target specific section IDs at any structural depth and override default styling rules via standard CSS cascade order.
 
-#### Requirement 11: Verbose Diagnostic Logging Engine
+#### Requirement 10: Verbose Diagnostic Logging Engine
 
 * **Default Logging Behavior:** Under standard operation, `cv-make` emits high-level status messages to `STDERR` (e.g., ingest notification, rendering status, and completion confirmation).
 * **Verbose Diagnostic Mode:** When invoked with `-v` or `--verbose`, `cv-make` shall set Python logging to `DEBUG` level and output detailed internal engine diagnostics to `STDERR`. This includes WeasyPrint layout events, font resolution/mapping logs, CSS rule parsing notices, and asset fetching details, enabling rapid troubleshooting of layout or font issues without modifying source code.
@@ -123,38 +124,38 @@ The document structure shall map strictly to a 4-tier HTML heading hierarchy:
 
 Section 1.3 details the non-functional software quality attributes, execution boundaries, OS compatibility matrix, rootless installation mechanics, container image lifecycle management, and ATS output compliance parameters.
 
-#### Requirement 12: Isolated Containerized Runtime Environment
+#### Requirement 11: Isolated Containerized Runtime Environment
 
 * **Container Sandbox:** All compilation, pre-processing, and PDF rendering tasks must execute exclusively inside an isolated container sandbox (Podman or Docker).
 * **Host Cleanliness:** The host operating system requires no Python, WeasyPrint, or DTP software dependencies; only a compatible container runtime engine is mandated.
 
-#### Requirement 13: Base OS & Environment Boundaries
+#### Requirement 12: Base OS & Environment Boundaries
 
 * **Primary OS Target:** Debian 13 Trixie (Linux) serves as the base container OS image (`debian:trixie-slim`) and primary target environment.
 * **Linux/POSIX Compatibility:** Full compatibility across modern Linux distributions (Debian, Ubuntu, Fedora, Arch Linux, Red Hat Enterprise Linux) operating Podman or Docker in rootless mode.
 
-#### Requirement 14: Production & Development Scripted Linux Installers
+#### Requirement 13: Production & Development Scripted Linux Installers
 
 * **Production Standalone Installer (`install.sh`):** POSIX Bash script engineered strictly for end-user standalone deployments. It downloads the pre-compiled binary wrapper archive (`cv-make-linux-amd64.tar.gz`) from GitHub Releases, pulls the official container image from GitHub Container Registry (GHCR), and automatically configures `export CV_MAKE_CONTAINER_IMAGE="ghcr.io/<owner>/cv-make:latest"` alongside `~/.local/bin` in the user's shell profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`). It requires no access to repository source code or local `Dockerfile` builds.
 * **Developer Repository Installer (`install_dev.sh`):** POSIX Bash script located in the repository root for local development environments. It builds the development container image locally from the root `Dockerfile` (tagged explicitly as `cv-make:dev`), deploys the repository's local `bin/cv-make` wrapper executable to `~/.local/bin/cv-make`, and automatically configures `export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` alongside `~/.local/bin` in the user's active shell profile.
 * **Duplicate Installation Guard & Idempotency:** If the target wrapper executable (`~/.local/bin/cv-make`) already exists on the host system, executing either installer without explicit repair flags shall halt execution with exit code 0, displaying an informative diagnostic to `STDERR` guiding the user to `cv-make --update` or `./install.sh --reinstall`.
 * **Reinstallation / Repair Mode:** Invoking `./install.sh --reinstall` (or alias `--repair`) forces a clean reinstallation sequence, purging pre-existing local wrappers and pulling or rebuilding the target container image layer based on the active installation mode.
 
-#### Requirement 15: Local Rootless Installation & Environment-Driven Immutable Wrapper
+#### Requirement 14: Local Rootless Installation & Environment-Driven Immutable Wrapper
 
 * **Rootless User-Space Installation:** The installation executes entirely within user space (deploying the executable wrapper binary to `~/.local/bin/cv-make`). No administrative (`root` or `sudo`) privileges are required.
 * **Immutable Wrapper Architecture:** The host wrapper script (`bin/cv-make`) is an immutable, static executable file requiring no string substitution or template compilation during installation.
 * **Strict Environment Image Binding:** The wrapper script possesses no hardcoded default container image name. It relies strictly on the `$CV_MAKE_CONTAINER_IMAGE` environment variable configured during installation (`ghcr.io/<owner>/cv-make:latest` for production, `cv-make:dev` for development). If `$CV_MAKE_CONTAINER_IMAGE` is unset or empty upon wrapper invocation, execution halts immediately with an error diagnostic on `STDERR` instructing the user to run the appropriate installer or export the variable.
 * **Environment-Bound Self-Healing Mechanics:** The host CLI wrapper script dynamically inspects local container storage prior to execution for the container image specified by `$CV_MAKE_CONTAINER_IMAGE`. If the image is missing (e.g., purged via `podman system prune`), the wrapper automatically pulls or restores the exact image designated by `$CV_MAKE_CONTAINER_IMAGE`, writing progress logs strictly to `STDERR`.
 
-#### Requirement 16: Isolated Wrapper-Driven Uninstallation Architecture
+#### Requirement 15: Isolated Wrapper-Driven Uninstallation Architecture
 
 * **Wrapper-Centric Teardown:** Uninstallation logic is embedded directly within the host executable wrapper (`~/.local/bin/cv-make`).
 * **Targeted CLI Flag Uninstallation:** Execution of `cv-make --uninstall` evaluates the active `$CV_MAKE_CONTAINER_IMAGE` environment variable and forcefully purges strictly the specific container image pointed to by `$CV_MAKE_CONTAINER_IMAGE` from local container engine storage. It then removes and unlinks the host wrapper script itself (`~/.local/bin/cv-make`).
 * **Cross-Environment Isolation Safety:** By purging exclusively the image declared in `$CV_MAKE_CONTAINER_IMAGE`, uninstallation prevents accidental deletion of parallel container caches (e.g., preserving a host production image when uninstalling a development container setup, or vice versa).
 * **Rootless Cleanup:** Teardown executes entirely in user space without requiring elevated administrative privileges.
 
-#### Requirement 17: Identifier-Driven Container Lifecycle & Update Engine
+#### Requirement 16: Identifier-Driven Container Lifecycle & Update Engine
 
 * **Image Reference Parsing:** Executing `cv-make --update` (or alias `cv-make --upgrade`) evaluates the `$CV_MAKE_CONTAINER_IMAGE` environment variable to determine whether the target image is a remote network-addressable registry reference or a local image tag, operating completely decoupled from environment classifications or installer logic.
 * **Remote Registry Synchronization:** If `$CV_MAKE_CONTAINER_IMAGE` represents a remote registry reference (containing domain or registry namespace components, e.g., `ghcr.io/<owner>/cv-make:latest`), the wrapper queries the remote registry and pulls the latest container image layers (`$ENGINE pull "$CV_MAKE_CONTAINER_IMAGE"`).
@@ -162,16 +163,16 @@ Section 1.3 details the non-functional software quality attributes, execution bo
 * **Wrapper Preservation:** The update procedure refreshes the targeted container image layers in local container storage without altering, deleting, or re-creating the host wrapper executable binary (`~/.local/bin/cv-make`).
 * **Stream Discipline:** All progress indicators, diagnostic logs, and status notifications during update operations are written strictly to `STDERR`, exiting with status code 0 upon successful completion of a remote registry pull.
 
-#### Requirement 18: Minimal System Prerequisites
+#### Requirement 17: Minimal System Prerequisites
 
 * **Host Prerequisites:** The host system requires only a functional container engine (Podman or Docker) and a POSIX-compliant shell interpreter (Bash/Sh).
 
-#### Requirement 19: Project Identity & Binary Naming
+#### Requirement 18: Project Identity & Binary Naming
 
 * **Binary Naming:** The host executable wrapper shall be named `cv-make`.
 * **Project Identity:** Official project naming designated as **CV Make**.
 
-#### Requirement 20: ATS Text Stream & Vector Output Compliance
+#### Requirement 19: ATS Text Stream & Vector Output Compliance
 
 * **Vector Text Stream Preservation:** The compiled output PDF document must maintain an un-rasterized, vector text stream. Document text layers must never be converted into bitmap images or obfuscated with custom non-standard glyph maps.
 * **Semantic Unicode Extraction:** The visual layout must preserve a natural logical reading order matching the source Markdown document structure, ensuring that standard text extraction utilities (`pdftotext`) and automated recruitment platforms (e.g., Lever, Greenhouse, Workday) extract clean, ungarbled Unicode text.
@@ -183,12 +184,12 @@ Section 2 defines the command-line interface (CLI) behavior, parameter resolutio
 
 ### 2.1 Interface & Parameter Handling
 
-The `cv-make` utility operates as an intuitive, POSIX-compliant command-line tool. It supports both standard file-path invocations and streaming Unix pipeline operations while maintaining strict isolation of diagnostic output from binary data streams.
+The `cv-make` CLI utility operates as an intuitive, POSIX-compliant host wrapper engineered around a strict named-parameter paradigm. It requires explicit source and destination file paths for document compilation, enforces parameter validation prior to container invocation, and maintains strict separation between internal binary execution streams and diagnostic console logging.
 
 #### Command-Line Signature
 
 ```bash
-cv-make [INPUT.md] [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [--out OUTPUT.pdf] [-v|--verbose]
+cv-make --in INPUT.md --out OUTPUT.pdf [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [-v|--verbose]
 cv-make --update | --upgrade
 cv-make --uninstall
 cv-make -h | --help
@@ -196,9 +197,12 @@ cv-make -h | --help
 
 #### Parameter Map & Arguments Definition
 
-* **`INPUT.md` (Positional Argument, Optional):**
-    * Specifies the source Markdown document file path.
-    * If omitted, or if an explicit `-` is passed, `cv-make` reads the source Markdown text directly from `STDIN`.
+* **`--in`, `-i` (Named Option, Mandatory):**
+    * Specifies the local file path to the source Markdown document containing candidate CV data.
+    * Positional arguments and standard stream placeholders (`-`) are strictly disallowed. If the specified file does not exist, execution terminates immediately with exit code `1`.
+* **`--out`, `-o` (Named Option, Mandatory):**
+    * Specifies the destination file path for the compiled binary PDF document.
+    * Passing standard stream placeholders (`-`) is strictly prohibited. The target directory must exist and be writable by the user, otherwise the CLI terminates with exit code `1`.
 * **`--photo`, `-p` (Named Option, Optional):**
     * Specifies the local file path to the candidate's portrait photograph (supported formats: JPEG, PNG, WebP).
     * When provided, the top header layout renders a 2-column grid with an auto-fitted photo container on the right.
@@ -206,33 +210,36 @@ cv-make -h | --help
 * **`--style`, `-s` (Named Option, Optional, Repeatable):**
     * Specifies the path to a custom CSS stylesheet file to override default visual presentation rules.
     * **Repeatability & Cascade Order:** This option may be declared multiple times on a single invocation (e.g., `--style theme.css --style print-adjustments.css`). Custom stylesheets are evaluated sequentially after the embedded base stylesheet (`default.css`), adhering strictly to standard CSS cascade priority rules.
-* **`--out`, `-o` (Named Option, Optional):**
-    * Specifies the destination file path for the compiled output PDF document.
-    * If omitted, or if an explicit `-` is passed (`--out -`), `cv-make` writes the binary PDF stream directly to `STDOUT`.
 * **`--verbose`, `-v` (Flag Option, Optional):**
-    * Enables detailed diagnostic output. When passed, Python logging is set to `DEBUG` level, outputting internal engine events, WeasyPrint layout milestones, font resolution details, and CSS parsing logs directly to `STDERR`.
+    * Enables detailed diagnostic output. When passed, Python logging inside the engine is set to `DEBUG` level, outputting internal preprocessor events, WeasyPrint layout milestones, font resolution details, and CSS parsing logs directly to `STDERR`.
 * **`--update`, `--upgrade` (Flag Option, Optional):**
-    * Triggers an online update operation, pulling the latest container image layer from GitHub Container Registry (GHCR) into local container storage while preserving the host wrapper script executable.
+    * Triggers an image refresh workflow, pulling the latest container image layer from GitHub Container Registry (GHCR) into local container storage for remote registry images, or prompting local rebuild for development image tags.
 * **`--uninstall` (Flag Option, Optional):**
-    * Triggers the automated uninstallation workflow, purging the container image from local storage and unlinking the local wrapper executable script from `~/.local/bin`.
+    * Triggers the automated uninstallation workflow, purging the configured container image from local storage, removing user-space environment exports from shell profiles, and unlinking the local wrapper executable script from `~/.local/bin`.
 * **`--help`, `-h` (Flag Option, Optional):**
-    * Displays command-line usage syntax, available parameters, and version information, then exits immediately with status code `0`.
+    * Displays command-line usage syntax, available parameters, and parameter descriptions, then exits immediately with status code `0`.
 
-#### Standard Stream Processing & Pipeline Integration
+#### Invocation Safeguards & Validation Rules
 
-* **Input Stream Processing (`STDIN`):** When operating in stream mode (`cat CV.md | cv-make > cv.pdf`), the preprocessor buffers input from `STDIN` until EOF before initiating AST transformation and HTML generation.
-* **Output Stream Processing (`STDOUT`):** When outputting to `STDOUT`, `cv-make` emits the raw binary PDF stream produced by WeasyPrint.
-* **Strict Logging Discipline (`STDERR`):**
-    * All operational status logs, diagnostic messages, container engine auto-detection notices, warnings, and error messages **must be directed exclusively to `STDERR` (`>&2`)**.
-    * Writing non-binary plain-text log messages to `STDOUT` during stream compilation is strictly prohibited, as it corrupts the binary structure of the generated PDF file.
+* **Zero-Argument Safeguard:** When executed without any parameters (`$# -eq 0`), the wrapper immediately displays the usage help screen and exits cleanly with exit code `0`, preventing interactive terminal hangs.
+* **Positional Argument Rejection:** Any positional argument passed to `cv-make` triggers an error diagnostic to `STDERR` and halts execution with exit code `1`.
+* **Stream Placeholder Prohibition:** Passing `-` as the value for either `--in` or `--out` is forbidden and rejected with an explicit error message.
+* **Pre-Execution Filesystem Validation:** Prior to spawning the container runtime, the wrapper validates that the input file exists and that the target directory for the output file is accessible on the host filesystem.
+
+#### Diagnostic Stream Discipline (`STDERR` Isolation)
+
+* **Encapsulated Execution Piping:** The host wrapper abstracts internal stream mechanics by executing the container engine with file redirection (`$ENGINE run -i ... < "$INPUT" > "$OUT"`).
+* **Diagnostic Channel Isolation:** All operational status logs, container auto-detection notices, preprocessor milestones, and WeasyPrint rendering messages are written exclusively to `STDERR` (`>&2`). `STDOUT` is reserved strictly for clean binary data generated by the underlying layout engine, preventing document corruption during file redirection.
 
 #### Custom Stylesheet Ingestion Logic
 
 1. The containerized execution environment always loads the built-in base stylesheet (`/app/styles/default.css`) first as the baseline presentation layer.
-2. For each custom CSS file declared via the `--style` parameter, the host wrapper mounts the specified stylesheet file into the container workspace.
+2. For each custom CSS file declared via the `--style` parameter, the host wrapper mounts the specified stylesheet file into the container workspace (`/tmp/assets/style_XX.css`) in read-only mode.
 3. The preprocessor loads custom stylesheets alongside `default.css` as explicit `CSS` objects within the Python execution context, passing them directly to the WeasyPrint PDF renderer:
     ```python
-    stylesheets = [CSS(filename=style_path) for style_path in stylesheet_paths]
+    stylesheets = ["/app/styles/default.css"] + args.style
+    css_objects = [CSS(filename=style_path) for style_path in stylesheets]
+    pdf_doc.write_pdf(sys.stdout.buffer, stylesheets=css_objects)
     ```
 4. This programmatic stylesheet ingestion guarantees reliable URL and font path resolution inside the container, giving users full flexibility to override default fonts, colors, section spacing, or pipe-alignment (`.flex-line`) behaviors via standard CSS cascade rules without relying on intermediate HTML `<link>` tag resolution.
 
@@ -329,8 +336,10 @@ When `install.sh` is executed in a standalone production context, it performs th
 5. **Automated Shell PATH & Environment Configuration:**
     * Inspects the host user's active shell profile configuration (`~/.bashrc`, `~/.zshrc`, or `~/.profile`).
     * Appends `export PATH="$HOME/.local/bin:$PATH"` if `~/.local/bin` is absent from `$PATH`.
-    * Appends `export CV_MAKE_CONTAINER_IMAGE="ghcr.io/<owner>/cv-make:latest"` if `$CV_MAKE_CONTAINER_IMAGE` is not yet configured in the shell profile.
-    * Emits an informative log to `STDERR` notifying the user that shell environment scripts were updated and recommending a session restart or running `source ~/.bashrc` (or equivalent) for immediate availability.
+    * Configures `export CV_MAKE_CONTAINER_IMAGE="ghcr.io/<owner>/cv-make:latest"`:
+        * Appends the export entry if `$CV_MAKE_CONTAINER_IMAGE` is not yet present in the shell profile.
+        * Updates the existing entry in-place if it currently points to a different image tag (e.g., switching from a local development build).
+    * Emits an informative log to `STDERR` notifying the user if shell configuration files were modified, recommending a session restart or running `source ~/.bashrc` (or equivalent) for immediate availability.
 
 #### Developer Installation Execution Workflow (`install_dev.sh`)
 
@@ -341,7 +350,10 @@ When `install_dev.sh` is executed inside a cloned source repository:
 3. **Local Wrapper Deployment:** Copies the repository's static executable wrapper `bin/cv-make` directly to `~/.local/bin/cv-make` and sets executable permissions (`chmod +x ~/.local/bin/cv-make`).
 4. **Automated Shell PATH & Environment Configuration:** Evaluates the user's active shell profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`):
     * Appends `export PATH="$HOME/.local/bin:$PATH"` if `~/.local/bin` is missing from `$PATH`.
-    * Appends `export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` if `$CV_MAKE_CONTAINER_IMAGE` is not yet configured, ensuring all CLI wrapper invocations in the development environment target the local `cv-make:dev` container image.
+    * Configures `export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"`:
+        * Appends the export entry if `$CV_MAKE_CONTAINER_IMAGE` is not yet present in the shell profile.
+        * Updates the existing entry in-place if it currently points to a different image tag (e.g., switching from the production GHCR image), ensuring subsequent wrapper invocations target the local development container image.
+    * Emits an informative log to `STDERR` if profile modifications occurred, advising the user to reload the shell session.
 
 #### Reinstallation & Repair Mechanics (`--reinstall` / `--repair`)
 
@@ -392,25 +404,24 @@ Uninstallation is initiated exclusively via the host executable wrapper:
 #### Teardown Execution Sequence
 
 When `cv-make --uninstall` is executed, the teardown sequence performs the following steps in sequence:
-
 1. **Environment Validation & Container Runtime Detection:**
-    * Evaluates system availability of Podman or Docker using the auto-detection algorithm defined in Section 2.2.
-    * Inspects the host environment for the active `$CV_MAKE_CONTAINER_IMAGE` variable. If `$CV_MAKE_CONTAINER_IMAGE` is unset or empty, uninstallation halts immediately with exit code 1, writing an error message strictly to `STDERR` instructing the user to set or export `$CV_MAKE_CONTAINER_IMAGE`.
+   * Evaluates system availability of Podman or Docker using the auto-detection algorithm defined in Section 2.2.
+   * Validates that `$CV_MAKE_CONTAINER_IMAGE` is defined in the host environment. If unset, halts with exit code 1 to prevent ambiguous image purging.
 2. **Isolated Container Image Purge:**
-    * Reads the container image tag explicitly declared in `$CV_MAKE_CONTAINER_IMAGE` (e.g., `ghcr.io/<owner>/cv-make:latest` or `cv-make:dev`).
-    * Forcefully purges strictly the target container image layer from local engine storage (`$ENGINE rmi -f "$CV_MAKE_CONTAINER_IMAGE"` 2>/dev/null || true) to reclaim disk space without affecting parallel container builds or unrelated images.
-3. **User-Space Binary Teardown (Self-Removal):**
-    * Removes and unlinks the executing host executable wrapper script itself (`rm -f "$0"`), purging `~/.local/bin/cv-make` from user space without requiring elevated administrative (`root` or `sudo`) privileges.
+   * Reads the explicit image reference in `$CV_MAKE_CONTAINER_IMAGE` and forcefully removes only this target layer from engine storage (`$ENGINE rmi -f "$IMAGE_NAME"`).
+3. **Shell Environment Cleanup:**
+   * Automatically parses user shell profiles (`~/.bashrc`, `~/.zshrc`, `~/.profile`) and safely strips out persistent `export CV_MAKE_CONTAINER_IMAGE=...` declarations.
+   * Emits a diagnostic notice to `STDERR` advising the user to execute `unset CV_MAKE_CONTAINER_IMAGE` or restart the active terminal session.
+4. **User-Space Binary Teardown (Self-Removal):**
+   * Removes and unlinks the executing host wrapper script (`rm -f "$0"`), purging `~/.local/bin/cv-make` from the user space.
 
 #### Exit Verification & Diagnostics
 
-Upon successful completion, the uninstallation process outputs a status confirmation message strictly to `STDERR`:
-
-```text
-[cv-make] Initiating uninstallation...
-[cv-make] Uninstallation complete.
-Container image purged and executable wrapper successfully removed.
-```
+Upon successful completion, the uninstallation workflow emits status notifications and environment cleanup guidance strictly to `STDERR`:
+* Confirms initiation and successful completion of container image removal and wrapper script deletion.
+* Informs the user that persistent shell profile declarations were removed.
+* Provides diagnostic advice instructing the user to execute `unset CV_MAKE_CONTAINER_IMAGE` or restart the active terminal session to clear the variable from runtime memory.
+* Exits cleanly with status code `0`.
 
 ## 3. DTP Layout & CSS Styling Engine
 
@@ -620,29 +631,29 @@ To enforce strict execution isolation and eliminate file permission conflicts ac
 
 #### System Execution & Data Flow Architecture
 
-The following diagram illustrates the complete operational boundary separation, streaming pipeline, volume mounting strategy, CLI argument proxying, and internal execution sequence.
+The following diagram illustrates the complete operational boundary separation, volume mounting strategy, CLI argument proxying, and internal execution sequence. It specifically highlights how the wrapper translates mandatory named file parameters (`--in` and `--out`) into internal stream redirections for the containerized Python preprocessor.
 
 ```text
 +───────────────────────────────────────────────────────────────────────────────────+
 │                                 HOST ENVIRONMENT                                  │
 │                                                                                   │
-│   Input Source (File / Pipe)  ───────────────────────────────────► STDIN Stream   │
-│   Output Dest (File / Pipe)   ◄─────────────────────────────────── STDOUT Stream  │
-│   Host Terminal Console       ◄─────────────────────────────────── STDERR Stream  │
+│   --in INPUT.md   (File Read)  ────────[ Shell Redirection: < ]──► STDIN Stream   │
+│   --out OUTPUT.pdf (File Write)◄───────[ Shell Redirection: > ]─── STDOUT Stream  │
+│   Host Terminal Console        ◄────────────────────────────────── STDERR Stream  │
 │                                                                                   │
-│   Host Photo Path (--photo)   ───[ Read-Only Mount (:ro,z) ]────┐                 │
-│   Host CSS #1     (--style)   ───[ Read-Only Mount (:ro,z) ]────┼──┐              │
-│   Host CSS #2     (--style)   ───[ Read-Only Mount (:ro,z) ]────┼──┼──┐           │
-+─────────────────────────────────────────────────────────────────┼──┼──┼───────────+
-                                                                  │  │  │
-                                                                  │  │  │
-+─────────────────────────────────────────────────────────────────┼──┼──┼───────────+
-│                       CONTAINER SANDBOX (`debian:trixie-slim`)  │  │  │           │
-│                                                                 │  │  │           │
-│   Isolated Asset Mount Points:                                  │  │  │           │
-│     • /tmp/assets/photo.jpg ◄───────────────────────────────────┘  │  │           │
-│     • /tmp/assets/style_00.css ◄───────────────────────────────────┘  │           │
-│     • /tmp/assets/style_01.css ◄──────────────────────────────────────┘           │
+│   Host Photo Path (--photo)    ───[ Read-Only Mount (:ro,z) ]────┐                │
+│   Host CSS #1     (--style)    ───[ Read-Only Mount (:ro,z) ]────┼──┐             │
+│   Host CSS #2     (--style)    ───[ Read-Only Mount (:ro,z) ]────┼──┼──┐          │
++──────────────────────────────────────────────────────────────────┼──┼──┼──────────+
+                                                                   │  │  │
+                                                                   │  │  │
++──────────────────────────────────────────────────────────────────┼──┼──┼──────────+
+│                       CONTAINER SANDBOX (`debian:trixie-slim`)   │  │  │          │
+│                                                                  │  │  │          │
+│   Isolated Asset Mount Points:                                   │  │  │          │
+│     • /tmp/assets/photo.jpg ◄────────────────────────────────────┘  │  │          │
+│     • /tmp/assets/style_00.css ◄────────────────────────────────────┘  │          │
+│     • /tmp/assets/style_01.css ◄───────────────────────────────────────┘          │
 │                                                                                   │
 │   Constructed CLI Container Entrypoint:                                           │
 │     python3 /app/cv_make.py \                                                     │
@@ -652,37 +663,37 @@ The following diagram illustrates the complete operational boundary separation, 
 │       [-v|--verbose]                                                              │
 │                                                                                   │
 │   Internal Container Processing Pipeline (`/app/cv_make.py`):                     │
-│     1. Ingest Raw Markdown Text ◄──────────────────────────────── STDIN Stream    │
+│     1. Ingest Raw Markdown Text ◄───────────────────────────────── STDIN Stream   │
 │     2. Parse AST & Transform to Enriched HTML DOM                                 │
 │     3. Construct Ordered CSS Objects List:                                        │
 │          • CSS(filename='/app/styles/default.css')                                │
 │          • CSS(filename='/tmp/assets/style_00.css')                               │
 │          • CSS(filename='/tmp/assets/style_01.css')                               │
 │     4. Render PDF Document via WeasyPrint Engine                                  │
-│     5. Emit Binary PDF Stream ──────────────────────────────────► STDOUT Stream   │
-│     6. Emit Status Logs & Verbose Diagnostics ──────────────────► STDERR Stream   │
+│     5. Emit Binary PDF Stream ───────────────────────────────────► STDOUT Stream  │
+│     6. Emit Status Logs & Verbose Diagnostics ───────────────────► STDERR Stream  │
 +───────────────────────────────────────────────────────────────────────────────────+
 ```
 
 #### Streaming Protocol Specifications
 
-The containerized preprocessor operates exclusively in a pure stream-processing mode for document content:
+The containerized preprocessor operates in a pure stream-processing mode for document content, completely decoupled from host filesystem paths:
 
-1. **Input Stream Ingestion (`STDIN`):** The preprocessor inside the container reads raw Markdown source text directly from `sys.stdin`. The Python script remains agnostic as to whether the host wrapper read a file path or forwarded a live shell pipe (`cat CV.md | cv-make`).
-2. **Output Stream Emission (`STDOUT`):** The compiled binary PDF document is written directly to `sys.stdout.buffer`.
+1. **Input Stream Ingestion (`STDIN`):** The preprocessor inside the container reads raw Markdown source text directly from `sys.stdin`. The Python script remains fully agnostic of host-level filesystem layout, processing content piped transparently by the host wrapper via shell redirection (`< "$INPUT"`).
+2. **Output Stream Emission (`STDOUT`):** The compiled binary PDF document is written directly to `sys.stdout.buffer`. The host wrapper captures this stream and writes the final document cleanly to the user-specified destination path (`> "$OUT"`).
 3. **Diagnostic & Logging Stream (`STDERR`):**
-    * Standard status updates, container auto-detection notices, warnings, and error messages are written exclusively to `sys.stderr`.
-    * When the `-v` or `--verbose` flag is passed, `cv_make.py` initializes diagnostic mode (`setup_diagnostics()`), setting logging levels to `DEBUG` and routing internal `weasyprint` rendering events, font mapping outputs, and CSS parsing warnings directly to `sys.stderr`.
-    * Writing log text to `STDOUT` is strictly prohibited under all operational modes to prevent binary PDF corruption.
+    * Standard status updates, container auto-detection notices, warnings, and error messages are written exclusively to `sys.stderr` (`>&2`).
+    * When the `-v` or `--verbose` flag is passed, `cv_make.py` activates diagnostic mode (`setup_diagnostics(verbose=True)`), raising the logging level to `DEBUG` and routing internal WeasyPrint rendering events, font resolution mappings, and CSS parsing diagnostics directly to `sys.stderr`.
+    * Emitting plaintext or log messages to `STDOUT` is strictly prohibited under all execution modes to prevent binary PDF stream corruption.
 
 #### Asset Mounting & Path Translation Protocol
 
-To guarantee least-privilege security and eliminate file permission conflicts (e.g., UID/GID rootless mapping issues on Linux):
+To enforce least-privilege security and eliminate host-container permission conflicts (e.g., UID/GID rootless user namespace mappings on Linux):
 
 * The host wrapper resolves absolute paths for optional assets (`--photo` and `--style`).
-* Each asset file is mounted individually as a read-only volume (`-v "/host/file:/tmp/assets/target:ro,z"`) into an isolated `/tmp/assets/` directory inside the container sandbox.
-* The `:z` volume flag ensures proper SELinux context relabeling on supported Linux distributions (such as Fedora or RHEL).
-* The wrapper never mounts the host's working directory (`$PWD`), guaranteeing that host filesystem integrity remains uncompromised.
+* Each asset file is mounted individually as an isolated, read-only volume (`-v "/host/path/file:/tmp/assets/target:ro,z"`) into a sandboxed `/tmp/assets/` container directory.
+* The `:z` volume flag ensures proper SELinux context relabeling on supported Linux distributions (e.g., Fedora or RHEL).
+* The wrapper never mounts the host's entire working directory (`$PWD`), guaranteeing that host filesystem integrity and file permissions remain uncompromised.
 
 #### Custom Stylesheet Ingestion & Cascade Ordering
 
@@ -691,19 +702,20 @@ Preserving the exact user-intended CSS cascade order across multiple `--style` f
 1. **Host CLI Evaluation:** The host wrapper parses command-line arguments sequentially from left to right.
 2. **Indexed Mount Mapping:** For each `--style` (or `-s`) flag encountered, the wrapper assigns a zero-padded index (e.g., `style_00.css`, `style_01.css`) and mounts the file into `/tmp/assets/`.
 3. **Ordered Argument Array Construction:** The wrapper constructs the container execution command, appending repeated `--style` options in the exact sequence supplied on the host CLI:
-`--style /tmp/assets/style_00.css --style /tmp/assets/style_01.css`
+   `--style /tmp/assets/style_00.css --style /tmp/assets/style_01.css`
 4. **Programmatic Object Ingestion & Cascade Execution:** Inside the container, Python's `argparse` module (`action='append'`) collects stylesheet paths into an ordered list. The script prepends `/app/styles/default.css` and instantiates Python `CSS(filename=...)` objects sequentially, passing them directly to WeasyPrint:
     ```python
-    stylesheets = [CSS(filename=style_path) for style_path in stylesheet_paths]
-    pdf_doc.write_pdf(sys.stdout.buffer, stylesheets=stylesheets)
+    stylesheets = ["/app/styles/default.css"] + args.style
+    css_objects = [CSS(filename=style_path) for style_path in stylesheets]
+    pdf_doc.write_pdf(sys.stdout.buffer, stylesheets=css_objects)
     ```
 
 WeasyPrint evaluates the stylesheet objects in this exact order, ensuring standard CSS specificity and cascade override behavior without needing intermediate HTML `<link>` tag resolution.
 
 #### Architectural Benefits
 
-* **Zero Host File Pollution:** The container operates as a read-only sandbox regarding host filesystems, writing solely to standard output.
-* **Stream Discipline & Pipeline Integration:** `cv-make` seamlessly integrates into standard Unix shell pipelines (`cat CV.md | cv-make --photo photo.jpg > cv.pdf`).
+* **Zero Host File Pollution:** The container operates as a read-only sandbox regarding host filesystems, emitting binary document data strictly to standard output.
+* **Encapsulated Stream Architecture:** The host wrapper cleanly bridges host file paths (`--in` and `--out`) with container stream I/O (`< "$INPUT" > "$OUT"`), preventing interactive terminal hangs and stream pollution while maintaining robust parameter validation.
 * **On-Demand Diagnostics:** The `--verbose` flag allows developers and users to inspect WeasyPrint's internal layout decisions and font resolution steps directly in `STDERR` without modifying application source code.
 
 ### 4.3 Container Image Specification (`Dockerfile`)
@@ -807,26 +819,29 @@ The automation pipeline implemented in `.github/workflows/release.yml` executes 
 
 ### 4.5 Local Development & Testing Workflow
 
-Section 4.5 outlines the development, local execution, and Quality Assurance (QA) testing workflows for contributors working on the `cv-make` codebase. It provides explicit guidelines for rapid local iteration, developer environment setup via `install_dev.sh`, source code mounting, and ATS compliance validation.
+Section 4.5 outlines the development, local execution, and Quality Assurance (QA) testing workflows for contributors working on the `cv-make` codebase. It provides explicit guidelines for rapid local iteration, developer environment setup via `install_dev.sh`, hot source code mounting, and ATS compliance validation.
 
 #### Developer Environment Setup (`install_dev.sh`)
 
 Contributors developing or testing changes locally within the cloned Git repository should initialize their environment using the developer installer script:
-
-```bash
-./install_dev.sh
-```
-
-This idempotent script builds the local development container image (`cv-make:dev`), installs the repository's static executable wrapper `bin/cv-make` into `~/.local/bin/cv-make`, configures `~/.local/bin` in `$PATH`, and automatically exports `CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` in the user's active shell startup profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`).
+    ```bash
+    ./install_dev.sh
+    ```
+* **Duplicate Installation Guardrail:** If `~/.local/bin/cv-make` is already present, running `./install_dev.sh` halts gracefully with exit code `0`, preventing accidental overwrites and prompting the developer to use `--reinstall` if a full redeployment is intended.
+* **Forced Reinstallation / Refresh:** To rebuild the development image and redeploy the static wrapper from local repository sources, developers must pass the `--reinstall` flag:
+    ```bash
+    ./install_dev.sh --reinstall
+    ```
+* **Environment Provisioning:** The installer compiles the local development container image (`cv-make:dev`), copies the repository's static wrapper `bin/cv-make` to `~/.local/bin/cv-make`, ensures `~/.local/bin` is configured in `$PATH`, and sets `export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` in the user's active shell startup profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`).
 
 #### Rapid Iteration Cycle (Hot Source Mounting & Image Overrides)
 
 When modifying the preprocessor Python script (`src/cv_make.py`) or the base stylesheet (`src/styles/default.css`), developers can test live code changes instantly without triggering time-consuming container image rebuilds:
 
 1. **Local Dev Container Build & Refresh:**
-    To refresh or build the development container image layer, developers can either re-run the idempotent developer installer or execute a direct container engine build:
+    To refresh or build the development container image layer, developers can either re-execute the developer installer with the `--reinstall` flag or run a direct container engine build:
     ```bash
-    ./install_dev.sh
+    ./install_dev.sh --reinstall
     # Or directly via container engine:
     podman build -t cv-make:dev .
     ```
@@ -838,13 +853,13 @@ When modifying the preprocessor Python script (`src/cv_make.py`) or the base sty
       "$CV_MAKE_CONTAINER_IMAGE" --verbose < CV.md > output_test.pdf
     ```
 3. **Wrapper Integration Testing with Development Build:**
-    Test the installed host wrapper directly. Since `install_dev.sh` exports `CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` in the shell environment, `cv-make` automatically binds to the local development container:
+    Test the installed host wrapper directly. Since `install_dev.sh` configures `CV_MAKE_CONTAINER_IMAGE="cv-make:dev"` in the shell environment, `cv-make` automatically binds to the local development container:
     ```bash
-    cv-make CV.md -o output_test.pdf -v
+    cv-make --in CV.md --out output_test.pdf -v
     ```
     *Note on Ad-hoc Overrides:* Developers can also explicitly test the wrapper against alternative container builds or temporary tags on the fly by prefixing the environment variable per invocation:
     ```bash
-    CV_MAKE_CONTAINER_IMAGE="cv-make:test" cv-make CV.md -o output_test.pdf -v
+    CV_MAKE_CONTAINER_IMAGE="cv-make:test" cv-make --in CV.md --out output_test.pdf -v
     ```
 
 #### Manual CV Generation Validation Protocol
@@ -854,7 +869,7 @@ Before submitting code changes or tagging a new release, developers must execute
 1. **Visual Layout, Font & Pagination Inspection:**
     * Verify page boundaries and check that `@page` margins prevent orphan headings or artificial empty gaps on intermediate pages.
     * Confirm that embedded fonts render strictly in IBM Plex Sans (verifiable via `pdffonts output_test.pdf`) without silent fallbacks to DejaVu.
-    * Verify that company and role titles in H3/H4 headers render with distinct visual weight (font-weight: 500 for italicized roles).
+    * Verify that company and role titles in H3/H4 headers render with distinct visual weight (`font-weight: 500` for italicized roles).
     * Confirm that right-aligned date blocks (`.flex-line`) align flush to the right page margin.
     * Verify that the GDPR section (`#gdpr-clause`) suppresses the H2 heading and renders as a compact, italicized footer block.
 2. **ATS Text Extraction Check (`pdftotext`):**

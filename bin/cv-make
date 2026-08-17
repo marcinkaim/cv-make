@@ -7,13 +7,19 @@
 
 set -e
 
-INPUT="-"
+# Display help screen when invoked without arguments
+if [ $# -eq 0 ]; then
+    HELP=1
+else
+    HELP=0
+fi
+
+INPUT=""
 PHOTO=""
 STYLES=()
-OUT="-"
+OUT=""
 UNINSTALL=0
 UPDATE=0
-HELP=0
 VERBOSE=0
 
 while [[ $# -gt 0 ]]; do
@@ -34,25 +40,46 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=1
             shift
             ;;
+        -i|--in)
+            if [ $# -lt 2 ]; then
+                echo "[ERROR] Option $1 requires a file path argument." >&2
+                exit 1
+            fi
+            INPUT="$2"
+            shift 2
+            ;;
+        -o|--out)
+            if [ $# -lt 2 ]; then
+                echo "[ERROR] Option $1 requires a file path argument." >&2
+                exit 1
+            fi
+            OUT="$2"
+            shift 2
+            ;;
         -p|--photo)
+            if [ $# -lt 2 ]; then
+                echo "[ERROR] Option $1 requires an image path argument." >&2
+                exit 1
+            fi
             PHOTO="$2"
             shift 2
             ;;
         -s|--style)
+            if [ $# -lt 2 ]; then
+                echo "[ERROR] Option $1 requires a stylesheet path argument." >&2
+                exit 1
+            fi
             STYLES+=("$2")
             shift 2
             ;;
-        -o|--out)
-            OUT="$2"
-            shift 2
-            ;;
         -*)
-            echo "[ERROR] Unknown option $1" >&2
+            echo "[ERROR] Unknown option: $1" >&2
             exit 1
             ;;
         *)
-            INPUT="$1"
-            shift
+            echo "[ERROR] Positional arguments are not supported: $1" >&2
+            echo "Use named parameters: --in INPUT.md --out OUTPUT.pdf" >&2
+            exit 1
             ;;
     esac
 done
@@ -60,16 +87,16 @@ done
 if [ "$HELP" -eq 1 ]; then
     echo "CV Make - Automated ATS-Compliant PDF CV Builder"
     echo "Usage:"
-    echo "  cv-make [INPUT.md] [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [--out OUTPUT.pdf] [-v]"
+    echo "  cv-make --in INPUT.md --out OUTPUT.pdf [--photo IMAGE_PATH] [--style STYLESHEET.css ...] [-v]"
     echo "  cv-make --update"
     echo "  cv-make --uninstall"
     echo "  cv-make --help"
     echo ""
     echo "Options:"
-    echo "  INPUT.md                  Optional source Markdown file. Defaults to STDIN."
+    echo "  -i, --in INPUT.md         Required source Markdown file path."
+    echo "  -o, --out OUTPUT.pdf      Required destination PDF file path."
     echo "  -p, --photo IMAGE_PATH    Optional path to portrait photograph."
     echo "  -s, --style STYLESHEET    Optional, repeatable path to override CSS stylesheet."
-    echo "  -o, --out OUTPUT.pdf      Optional output PDF destination. Defaults to STDOUT."
     echo "  -v, --verbose             Enable detailed diagnostic logging to STDERR."
     echo "  --update, --upgrade       Pull the latest container image from GHCR."
     echo "  --uninstall               Uninstalls the container image and binary wrapper."
@@ -127,10 +154,54 @@ fi
 if [ "$UNINSTALL" -eq 1 ]; then
     echo "[cv-make] Initiating uninstallation..." >&2
     $ENGINE rmi -f "$IMAGE_NAME" 2>/dev/null || true
+
+    # Clean up CV_MAKE_CONTAINER_IMAGE definitions from user shell profiles
+    for PROFILE in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+        if [ -f "$PROFILE" ]; then
+            sed -i '/export CV_MAKE_CONTAINER_IMAGE=/d' "$PROFILE"
+        fi
+    done
+
     rm -f "$0"
     echo "[cv-make] Uninstallation complete." >&2
-    echo "Container image purged and executable wrapper successfully removed." >&2
+    echo "Container image purged, shell profile cleaned, and executable wrapper successfully removed." >&2
+    echo "Note: To clear the variable from your current active terminal session, run:" >&2
+    echo "  unset CV_MAKE_CONTAINER_IMAGE" >&2
     exit 0
+fi
+
+# Validation of mandatory parameters for document compilation
+if [ -z "$INPUT" ]; then
+    echo "[ERROR] Missing required parameter: -i / --in <INPUT.md>" >&2
+    echo "Run 'cv-make --help' for usage instructions." >&2
+    exit 1
+fi
+
+if [ "$INPUT" = "-" ]; then
+    echo "[ERROR] Standard input '-' is not permitted for --in." >&2
+    exit 1
+fi
+
+if [ ! -f "$INPUT" ]; then
+    echo "[ERROR] Input Markdown file not found at path: $INPUT" >&2
+    exit 1
+fi
+
+if [ -z "$OUT" ]; then
+    echo "[ERROR] Missing required parameter: -o / --out <OUTPUT.pdf>" >&2
+    echo "Run 'cv-make --help' for usage instructions." >&2
+    exit 1
+fi
+
+if [ "$OUT" = "-" ]; then
+    echo "[ERROR] Standard output '-' is not permitted for --out." >&2
+    exit 1
+fi
+
+OUT_DIR=$(dirname "$OUT")
+if [ ! -d "$OUT_DIR" ]; then
+    echo "[ERROR] Target output directory does not exist: $OUT_DIR" >&2
+    exit 1
 fi
 
 # Self-healing logic
@@ -189,20 +260,4 @@ for STYLE in "${STYLES[@]}"; do
 done
 
 # Launch container with stream piping
-if [ "$INPUT" = "-" ]; then
-    if [ "$OUT" = "-" ]; then
-        $ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}"
-    else
-        $ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}" > "$OUT"
-    fi
-else
-    if [ ! -f "$INPUT" ]; then
-        echo "[ERROR] Input Markdown file not found at path: $INPUT" >&2
-        exit 1
-    fi
-    if [ "$OUT" = "-" ]; then
-        $ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}" < "$INPUT"
-    else
-        $ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}" < "$INPUT" > "$OUT"
-    fi
-fi
+$ENGINE run -i --rm "${MOUNTS[@]}" "$IMAGE_NAME" "${CONTAINER_ARGS[@]}" < "$INPUT" > "$OUT"

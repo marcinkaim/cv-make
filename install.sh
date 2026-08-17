@@ -157,9 +157,10 @@ if ! grep -q 'export CV_MAKE_CONTAINER_IMAGE=' "$PROFILE" 2>/dev/null; then
     fi
     echo "export CV_MAKE_CONTAINER_IMAGE=\"$CONTAINER_IMAGE\"" >> "$PROFILE"
     PROFILE_UPDATED=1
-else
+elif ! grep -Fxq "export CV_MAKE_CONTAINER_IMAGE=\"$CONTAINER_IMAGE\"" "$PROFILE" 2>/dev/null; then
     # Update existing variable entry to ensure it points to the production GHCR image
     sed -i "s|export CV_MAKE_CONTAINER_IMAGE=.*|export CV_MAKE_CONTAINER_IMAGE=\"$CONTAINER_IMAGE\"|" "$PROFILE"
+    PROFILE_UPDATED=1
 fi
 
 echo "[cv-make-installer] CV Make installed successfully to $TARGET_WRAPPER!" >&2

@@ -132,6 +132,10 @@ configure_shell_profile() {
         fi
         echo 'export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"' >> "$PROFILE"
         UPDATED=1
+    elif ! grep -Fxq 'export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"' "$PROFILE" 2>/dev/null; then
+        # Update existing variable entry if it points to a different image tag
+        sed -i 's|export CV_MAKE_CONTAINER_IMAGE=.*|export CV_MAKE_CONTAINER_IMAGE="cv-make:dev"|' "$PROFILE"
+        UPDATED=1
     fi
 
     echo "[cv-make-dev-installer] Developer setup complete!" >&2
