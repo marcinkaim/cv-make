@@ -447,90 +447,85 @@ The structural transformation pipeline executes through sequential processing pa
 
 ### 3.2 Typography, Font Resolution & Bullet List Mechanics
 
-Typography in `cv-make` is engineered to deliver a clean, modern aesthetic optimized for both human readability and automated ATS extraction. The document layout relies strictly on open-source Typeface standards from IBM, fully embedded within the container image to guarantee deterministic visual outputs across all build environments.
+Typography in `cv-make` is engineered to deliver a clean, modern aesthetic optimized for both human readability and automated ATS extraction. The document layout relies strictly on open-source Typeface standards from IBM, provided directly within the container runtime environment to guarantee deterministic visual outputs across all build environments.
 
 #### Font Families & Asset Resolution Strategy
 
-* **Primary Typeface (`IBM Plex Sans`):** All structural body text, section headers, contact metadata, and list elements strictly utilize the `IBM Plex Sans` font family.
-* **Monospace Typeface (`IBM Plex Mono`):** Inline code snippets (`<code>`) utilize `IBM Plex Mono` for technical precision.
-* **Fallback Elimination via Direct `@font-face` Mapping:**
-    * System fonts are provided inside the container by the Debian `fonts-ibm-plex` package at `/usr/share/fonts/truetype/ibm-plex/`.
-    * To prevent Pango/Fontconfig from silently falling back to Debian's default `DejaVu Serif` when name-matching fails, `@font-face` declarations in `default.css` must map directly to explicit absolute container file paths (e.g., `src: url('/usr/share/fonts/truetype/ibm-plex/IBMPlexSans-Regular.ttf')`).
-    * Declarations must omit the `local()` function, forcing WeasyPrint to load the TrueType font binaries directly from disk.
-    * The image build process executes `fc-cache -fv` to ensure the system font index is fully populated prior to runtime.
+* **Primary Typeface (`IBM Plex Sans`):** All structural body text, section headers, contact metadata, and list elements utilize the `IBM Plex Sans` font family, backed by standard system sans-serif fallback definitions.
+* **Monospace Typeface (`IBM Plex Mono`):** Inline code snippets (`<code>`) utilize `IBM Plex Mono` (with standard monospace fallbacks) to render technical keywords, commands, and certifications with typographic precision.
+* **Container-Provided Font Resolution:**
+    * System fonts are provided inside the container via the standard Debian `fonts-ibm-plex` package.
+    * The font index is pre-populated during the container build process (`fc-cache -fv`), enabling Pango and Fontconfig to resolve font families directly via standard CSS font stack matching without requiring manual `@font-face` path mappings in stylesheets.
 
-#### Typographic Hierarchy & Visual Density
+#### Typographic Hierarchy & Cascading Visual Density
 
-The base stylesheet (`default.css`) establishes a dense, professional typographic scale designed to maximize information density without sacrificing whitespace balance:
+The base stylesheet (`default.css`) establishes a disciplined, progressive typographic scale designed to balance high information density with visual clarity:
 
-* **Document Body:** Base font size set to `9.5pt` with a `1.45` line-height and dark charcoal text (`#222222`).
-* **Name & Title Header (H1):** Sized at `20pt` with `font-weight: 700` (`IBMPlexSans-Bold`).
-* **Primary Section Headings (H2):** Sized at `14pt` with `font-weight: 700` and a subtle bottom border (`1.5px solid #222222`).
-* **Employer & Subsection Headings (H3):** Sized at `11pt` with `font-weight: 600` (`IBMPlexSans-SemiBold`).
-* **Compact Subsection Headings (H4):** Sized at `9.5pt` with `font-weight: 600` and compressed margins (`#333333`).
+* **Document Header (H1):** Establishes primary visual dominance for the candidate's name and title at the top of the document.
+* **Primary Section Headings (H2):** Delineate major content divisions with prominent typography and subtle visual separators (such as bottom borders).
+* **Subsection Headings (H3 & H4):** Form the structural backbone for organizations, institutions, degree programs, and project groupings.
+* **Cascading Typographic Scale for Nested Levels:**
+    * As section depth increases (e.g., from `level-3` to `level-4` and deeper), typography and spacing progressively scale down.
+    * This allows granular sub-entries, secondary items, or supplementary metadata to render with higher information density and compact line heights automatically, driven purely by the CSS cascade rather than domain-specific preprocessor logic.
 * **Role Title & Emphasis Formatting:**
-    * When job roles or specializations are formatted with emphasis (`*Software Engineer*` -> `<em>`) inside `H3` or `H4` headers, CSS applies a dedicated rule targeting `.cv-section h3 em` and `.cv-section h4 em`.
-    * Role titles are styled with `font-weight: 500` (`IBMPlexSans-Medium`) and a slightly lighter shade (`#444444`). This creates a subtle visual distinction between the company name and job title while maintaining overall header cohesion.
+    * When titles, specializations, or sub-designations are formatted with emphasis (`*Title*` -> `<em>`) inside subsection headers (`H3`, `H4`), stylesheet rules apply dedicated contrast styling targeting `.cv-section h3 em` and `.cv-section h4 em`.
+    * This creates a distinct optical contrast (via adjusted font weight and tone) between the primary entity name and the role title, preserving cohesion within a unified header line.
 
 #### Bullet List Marker Mechanics (`li::marker`)
 
-Standard browser default list markers (`circle`, `square`) rely on glyphs that may not be mapped across all weight variants of `IBM Plex Sans`, triggering Pango to fetch glyphs from fallback system fonts (e.g., `DejaVu Sans`).
+Standard browser-default list markers (such as `circle` or `square`) rely on glyphs that may not be uniformly present across all variants of `IBM Plex Sans`, causing Pango to dynamically fetch missing glyphs from system fallback fonts (such as `DejaVu Sans`).
 
 To guarantee 100% font embedding purity (verifiable via `pdffonts`):
 
-* **Explicit Glyph Definitions:** Default browser `list-style-type` markers are replaced with explicit text strings assigned to `li::marker` pseudo-elements.
+* **Explicit Marker Glyph Definition:** Default browser `list-style-type` markers are replaced with explicit text strings assigned to `li::marker` pseudo-elements.
 * **Alternating Hierarchical Markers:**
-    * **Level 1 (`ul > li::marker`):** Solid bullet `"• "` (Unicode `U+2022`).
-    * **Level 2 (`ul ul > li::marker`):** Standard hyphen `"- "` (Unicode `U+002D`).
-    * **Level 3 (`ul ul ul > li::marker`):** Solid bullet `"• "`.
-    * **Level 4 (`ul ul ul ul > li::marker`):** Standard hyphen `"- "`.
-* **Glyph Guarantee:** Both bullet (`•`) and hyphen (`-`) characters exist natively within the core `IBM Plex Sans` Latin-1 glyph table, ensuring zero fallback font embeddings in output PDF documents.
+    * **Level 1 (`ul > li::marker`):** Solid bullet (`"• "`, Unicode `U+2022`).
+    * **Level 2 (`ul ul > li::marker`):** Standard hyphen (`"- "`, Unicode `U+002D`).
+    * **Level 3 (`ul ul ul > li::marker`):** Solid bullet (`"• "`).
+    * **Level 4 (`ul ul ul ul > li::marker`):** Standard hyphen (`"- "`).
+* **Glyph & ATS Guarantee:** Both bullet (`•`) and hyphen (`-`) characters reside natively within the core Latin-1 character set of `IBM Plex Sans`, preventing fallback font substitution while ensuring transparent, sequential text parsing by ATS engines.
 
 ### 3.3 Page Geometry, Pagination & Break Control Rules
 
-The document layout engine uses W3C CSS Paged Media Module Level 3 standards to control page dimensions, margins, pagination counters, and granular page-break behavior. The pagination rules are optimized to eliminate empty vertical gaps and achieve maximum document density without orphan headings or split list entries.
+The document layout engine uses W3C CSS Paged Media Module Level 3 standards to control page geometry, printable area margins, dynamic pagination counters, and granular fragmentation behavior. Pagination and page-break mechanics are engineered to eliminate awkward vertical gaps and maximize document space efficiency while preventing orphan headings and awkwardly split items.
 
 #### Page Geometry & Margin Configuration
 
-* **Target Page Format:** Standard A4 portrait (`210mm` × `297mm`).
-* **Print Area Margins:** Defined uniformly via `@page` at `12mm` (top), `14mm` (right), `12mm` (bottom), and `14mm` (left).
-* **Header/Footer Margin Boxes:**
-    * Uses the `@bottom-right` margin box container for automated, CSS-driven page numbering.
-    * Page counter markup is evaluated dynamically via `counter(page)` and `counter(pages)` (rendered as `"Page X of Y"`).
-    * Counter typography uses `IBM Plex Sans` at `8pt` in a muted neutral tone (`#777777`).
+* **Target Page Format:** Standard A4 portrait orientation with balanced outer margins optimized for high-density document rendering and clean physical printing.
+* **Header/Footer Margin Boxes & Pagination:**
+    * Automated page numbering is defined via CSS Paged Media margin box containers (e.g., the bottom-right margin box).
+    * Page counters are evaluated dynamically during rendering via CSS `counter(page)` and `counter(pages)` (e.g., formatted as `"Page X of Y"`).
+    * Counter typography uses a muted, subtle tone and a compact font scale to ensure it remains unobtrusive across all pages.
 
 #### Profile Photograph Box Geometry
 
-* **Container Dimensions:** Fixed width of `28mm` and height of `36mm` (proportional to standard 7:9 document photo ratios).
-* **Scaling & Alignment (`.profile-photo`):** Utilizes `object-fit: cover` to ensure that photograph assets fully fill the target container bounds without aspect-ratio distortion or stretching.
-* **Styling:** Applies a subtle `2px` border radius for modern edge smoothing.
+* **Container Geometry:** Proportional portrait container aligned with standard document photography ratios.
+* **Scaling & Clipping (`.profile-photo`):** Utilizes `object-fit: cover` to guarantee that candidate photographs completely fill the frame without distortion, stretching, or loss of original aspect ratio.
+* **Visual Polish:** Subtle edge smoothing (border radius) is applied to blend the image seamlessly into the header card layout.
 
-#### CSS Paged Media Granular Break-Control Rules
+#### Page Fragmentation & Granular Break-Control Rules
 
-To ensure predictable document pagination across 2-to-4 page CV layouts, `default.css` enforces strict fragmentation constraints using modern CSS `break-*` properties (superseding legacy `page-break-*` syntax):
+To ensure predictable document pagination across multi-page layouts, stylesheet rules establish declarative fragmentation constraints that balance atomic block integrity with fluid page flow:
 
-* **Heading Protection (`break-after: avoid`):**
-    * All heading tags (`H1` through `H6`) enforce `break-after: avoid`.
-    * Headings are bound to the content element immediately following them, preventing orphan headings at the bottom of a page.
-    * Job titles or introductory role paragraphs located immediately below subsection headers (`.cv-section h3 + p`, `.cv-section h4 + p`) also enforce `break-after: avoid` to prevent role titles from being separated from their description blocks.
-* **Section Splitting Flexibility (`.cv-section { break-inside: auto }`):**
-    * Major structural section containers (`.level-2`, `.level-3`) allow internal page breaking (`break-inside: auto`).
-    * Allowing major sections to break naturally across pages prevents the layout engine from pushing entire multi-item work experience blocks onto a new page, eliminating large empty vertical gaps.
-* **Atomic Element Protection (`break-inside: avoid`):**
-    * Primary header blocks (`.header-main`), two-column pipe rows (`.flex-line`), compact historical subsections (`.level-4`, `.level-5`), and individual list items (`<li>`) enforce `break-inside: avoid`.
-    * Single list items or employment title rows cannot be fragmented internally across page boundaries.
-* **Paragraph Line Limits (`orphans: 1`, `widows: 1`):**
-    * Paragraph elements (`<p>`) override default browser orphan/widow constraints by setting `orphans: 1` and `widows: 1`.
-    * This allows two-line description paragraphs at page bottoms to split across pages when necessary, regaining up to `8–10mm` of vertical space per page and preventing whole paragraphs from being pushed onto the next page unnecessarily.
+* **Heading & Subtitle Protection (Orphan Elimination):**
+    * Heading elements across all structural levels are permanently bound to the content immediately following them, preventing orphaned headings at the bottom of a page.
+    * Immediate introductory subtitles and paragraphs directly beneath subsection headings are similarly protected to prevent role titles and entity designations from separating from their descriptive blocks.
+* **Natural Section Splitting:**
+    * Major structural sections and high-level subsections are permitted to break naturally across page boundaries between elements.
+    * Permitting multi-item sections to fragment fluidly between entries avoids large empty vertical gaps and prevents entire extensive sections from being pushed to subsequent pages unnecessarily.
+* **Atomic Block Integrity:**
+    * Core structural units—including the main header container, right-aligned pipe rows (`.flex-line`), individual bullet list items (`<li>`), and compact nested subsections—are treated as unbreakable atomic elements that cannot be split internally across page breaks.
+* **Paragraph Line Flow & Space Optimization:**
+    * Paragraph fragmentation rules are relaxed to allow multi-line descriptive text to divide naturally across page transitions when required.
+    * This flexibility optimizes printable page utilization, reclaiming vertical space at page bottoms without prematurely forcing complete paragraphs onto a new page.
 
-#### GDPR Compliance Clause Styling (`#gdpr-clause`)
+#### GDPR Compliance Clause Presentation (`#gdpr-clause`)
 
-* **Structural Identification:** Legal compliance sections automatically receive predictable DOM IDs (`#gdpr-clause`, `#klauzula-rodo`, or `#gdpr`) via preprocessor slugification.
-* **Visual De-emphasis & Suppression:**
-    * The main section heading (`H2`) is suppressed (`display: none`) to eliminate redundant visual titles and heavy border-bottom lines.
-    * Legal text is styled with a reduced font scale (`7.5pt`), tight line-height (`1.3`), italicized posture, and subtle dark-gray color (`#666666`).
-    * A top border (`0.5pt solid #e0e0e0`) with `6mm` top margin provides clean separation from preceding content.
-* **Break Protection:** Enforces `break-inside: avoid` to ensure the legal text block remains an unbroken unit at the tail end of the document.
+* **Automated Section Identification:** Legal compliance sections automatically receive predictable DOM IDs (e.g., `#gdpr-clause`, `#klauzula-rodo`, or `#gdpr`) through algorithmic heading slugification.
+* **Visual De-emphasis & Header Suppression:**
+    * The primary heading (`H2`) of the compliance section is suppressed to eliminate redundant section titles and heavy decorative borders.
+    * Legal text is rendered with a reduced font scale, tight line spacing, italicized styling, muted color tone, and full text justification, separated from the main content by a subtle top divider line.
+* **Footer Block Integrity:** The entire compliance block enforces unbreakable fragmentation constraints, ensuring the legal disclaimer remains a unified, uninterrupted unit at the conclusion of the document.
 
 ### 3.4 Stylesheet Ingestion, Cascade & ATS Compatibility
 
