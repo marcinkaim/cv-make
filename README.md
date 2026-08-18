@@ -9,9 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![REUSE Compliance Status](https://api.reuse.software/badge/github.com/marcinkaim/cv-make)](https://api.reuse.software/info/github.com/marcinkaim/cv-make)
-[![Release](https://img.shields.io/badge/release-v1.0.0-blue.svg)](https://github.com/marcinkaim/cv-make/releases)
+![GitHub Release](https://img.shields.io/github/v/release/marcinkaim/cv-make)
 [![CI/CD](https://github.com/marcinkaim/cv-make/actions/workflows/release.yml/badge.svg)](https://github.com/marcinkaim/cv-make/actions)
-[![Base OS](https://img.shields.io/badge/base_OS-Debian_13_Trixie-A81D33.svg)](https://www.debian.org/)
 [![Container Registry](https://img.shields.io/badge/GHCR-ghcr.io%2Fmarcinkaim%2Fcv--make-informational?logo=github)](https://github.com/marcinkaim/cv-make/pkgs/container/cv-make)
 
 ## 1. Overview
