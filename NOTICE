@@ -1,12 +1,8 @@
-SPDX-FileCopyrightText: 2026 Marcin Kaim
-SPDX-License-Identifier: Apache-2.0
-
 CV Make (cv-make)
 Copyright 2026 Marcin Kaim
 
 This product includes software developed as part of the CV Make project.
 
-<!-- REUSE-IgnoreStart -->
 ========================================================================
 Third-Party Software & Asset Attributions
 ========================================================================
@@ -41,4 +37,8 @@ Third-Party Software & Asset Attributions
    - Description: Underlying container execution environment (debian:trixie-slim).
    - Copyright: Copyright (c) Software in the Public Interest, Inc. and contributors
    - License: Various Open Source Licenses (GPL, LGPL, MIT, BSD)
-<!-- REUSE-IgnoreEnd -->
+
+7. Example Assets & Synthetic Imagery (examples/)
+   - Description: Sample portrait photograph (office-manager-photo.jpg) and demonstration CV files.
+   - Attribution: Portrait synthetically generated via the Nano Banana 2 AI model.
+   - License: Creative Commons Zero v1.0 Universal (CC0-1.0) / Public Domain Dedication

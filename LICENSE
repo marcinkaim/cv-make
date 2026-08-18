@@ -1,0 +1,61 @@
+CV Make Licensing Summary
+=========================
+
+The CV Make project is distributed under the Apache License, Version 2.0,
+except where explicitly stated otherwise in individual source files or
+subdirectories.
+
+1. Main Source Code & Build Automation
+--------------------------------------
+Unless otherwise annotated, all source code (Python preprocessor, wrapper
+scripts, CI/CD pipelines, and project configuration files) is provided under:
+
+    SPDX-License-Identifier: Apache-2.0
+    Full text available at: LICENSES/Apache-2.0.txt
+
+2. Documentation & Specifications
+---------------------------------
+All technical documentation, specifications, and architecture manuals located
+in the docs/ directory are provided under:
+
+    SPDX-License-Identifier: Apache-2.0
+
+3. Default Stylesheets & Layout Assets
+--------------------------------------
+Default CSS stylesheets and template layouts located in src/styles/
+are provided under:
+
+    SPDX-License-Identifier: Apache-2.0
+
+4. Example CVs & Sample Assets
+------------------------------
+All sample CV templates, generated demonstration PDF documents, and accompanying
+sample portrait photography located in the examples/ directory are dedicated
+to the public domain under the Creative Commons Zero v1.0 Universal dedication:
+
+    SPDX-License-Identifier: CC0-1.0
+    Full text available at: LICENSES/CC0-1.0.txt
+
+5. Third-Party Components & Attributions
+----------------------------------------
+This project utilizes external open-source packages, runtime libraries, and
+system fonts. For detailed copyright notices, attribution statements, and
+licensing requirements of bundled or referenced third-party components,
+please refer to:
+
+    NOTICE (and /usr/share/doc/ inside the runtime container)
+
+6. Standard REUSE Compliance
+----------------------------
+Each individual file in this repository contains SPDX license and copyright
+tags in its header comments or is mapped via REUSE.toml configuration.
+Full text files for all applicable licenses (Apache-2.0, CC0-1.0) are
+maintained in the:
+
+    LICENSES/
+
+directory in accordance with the REUSE Specification (v3.3).
+
+------------------------------------------------------------------------
+All contributions submitted to the CV Make repository are subject to the
+terms and conditions of this license summary and the Apache-2.0 license.
