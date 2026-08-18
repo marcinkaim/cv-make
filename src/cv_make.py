@@ -133,12 +133,12 @@ def main():
         for elem in nested_elements:
             soup.append(elem)
 
-        # Stage 5: Generic Pipe Splitter & Flex-Line Engine
+        # Stage 5: Generic Double-Pipe Splitter & Flex-Line Engine
         for node in soup.find_all(["h3", "h4", "p"]):
-            if node.get_text() and "|" in node.get_text():
+            if node.get_text() and "||" in node.get_text():
                 raw_inner_html = "".join(str(c) for c in node.contents)
-                if "|" in raw_inner_html:
-                    left_html, right_html = raw_inner_html.split("|", 1)
+                if "||" in raw_inner_html:
+                    left_html, right_html = raw_inner_html.split("||", 1)
                     left_html = left_html.strip()
                     right_html = right_html.strip()
 

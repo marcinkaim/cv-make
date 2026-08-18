@@ -1,7 +1,9 @@
 # Aleksandra Wisniewska [Fictional Person]
 
-Senior Office Manager • aleksandra.wisniewska@email.pl • +48 501 234 567  
-Wrocław, Poland • [linkedin.com/in/aleksandra-wisniewska-om](https://linkedin.com/in/aleksandra-wisniewska-om)
+### *Senior Office Manager*
+
+aleksandra.wisniewska@email.pl | +48 501 234 567 | Wrocław, Poland  
+[linkedin.com/in/aleksandra-wisniewska-om](https://linkedin.com/in/aleksandra-wisniewska-om)
 
 ## PROFESSIONAL SUMMARY
 
@@ -9,7 +11,7 @@ Results-driven and process-oriented Senior Office Manager with 8+ years of exper
 
 ## WORK EXPERIENCE
 
-### Nexis Solutions Sp. z o.o. – *Senior Office Manager* | 03.2022 – present
+### Nexis Solutions Sp. z o.o. – *Senior Office Manager* || 03.2022 – present
 
 Comprehensive operational management of a 3-floor Class A office (2,200 m², 180+ employees) for a technology enterprise in a hybrid working model. Direct supervision of a 3-person administrative and front-desk team.
 - **Operational Cost Optimization:** Renegotiated key service agreements (facility management, catering, office consumables, IT hardware), achieving an 18% annual reduction in operational expenses.
@@ -18,7 +20,7 @@ Comprehensive operational management of a 3-floor Class A office (2,200 m², 180
 - **Budget Management:** Independently planned and executed an annual OPEX budget of 1.8M PLN (~$450K) with less than 2% annual budget variance.
 - **Onboarding & Corporate Events:** Coordinated workplace logistics and equipment for 60+ new hires annually; organized company-wide conferences and team-building offsites for up to 200 attendees.
 
-### Veloce Media Group Sp. z o.o. – *Office Manager* | 06.2018 – 02.2022
+### Veloce Media Group Sp. z o.o. – *Office Manager* || 06.2018 – 02.2022
 
 Managed daily office operations for a digital marketing and media agency (80 employees). Partnered closely with the Executive Board, HR, and Accounting departments.
 - **Electronic Document Management (EDM):** Spearheaded the implementation of SaldeoSMART and Enova365, migrating 100% of vendor invoices and contracts into digital workflows and cutting invoice approval cycles by 65%.
@@ -26,7 +28,7 @@ Managed daily office operations for a digital marketing and media agency (80 emp
 - **Executive & Travel Support:** Managed executive calendars, organized complex domestic and international business travel (itineraries, accommodations, visas), and prepared documentation for board meetings.
 - **HSE & Compliance (BHP/PPOŻ):** Oversaw occupational health and safety compliance, mandatory medical check-ups, and scheduled fire safety audits for the facility.
 
-### Apex Consulting Group Sp. k. – *Office Coordinator / Office Assistant* | 09.2015 – 05.2018
+### Apex Consulting Group Sp. k. – *Office Coordinator / Office Assistant* || 09.2015 – 05.2018
 
 Coordinated front-office and administrative operations for a boutique management consultancy (40 consultants).
 - **Front Desk & Correspondence Management:** Supervised incoming/outgoing postal and digital mail flows, operated the central switchboard, and welcomed VIP clients and international partners.
@@ -35,10 +37,10 @@ Coordinated front-office and administrative operations for a boutique management
 
 ## EDUCATION
 
-### Wrocław University of Economics and Business | 2013 – 2015
+### Wrocław University of Economics and Business || 2013 – 2015
 *M.Sc. in Management, Specialization: Enterprise Management & Human Capital*
 
-### University of Wrocław | 2010 – 2013
+### University of Wrocław || 2010 – 2013
 *B.A. in Administration and Commercial Law*
 
 ## KEY SKILLS

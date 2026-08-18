@@ -33,7 +33,7 @@ SPDX-License-Identifier: Apache-2.0
 * 🤖 **ATS & Searchability Guarantee**: Text is rendered as selectable Unicode streams rather than rasterized images or fragmented glyph paths, preserving metadata and structural readability.
 * 📄 **CSS Paged Media Pagination**: Built-in A4 page layout with automatic orphan/widow protection (`break-inside: avoid`), page numbering (`Page X of Y`), and balanced page distribution.
 * 🧩 **Smart Layout Helpers**:
-    * **Universal Pipe (`|`) Syntax**: Converts section subheadings (e.g. `### Role | Date`) into baseline-aligned, non-wrapping flex-lines without needing complex Markdown tables.
+    * **Universal Double-Pipe (`||`) Syntax**: Converts section subheadings (e.g., `### Role || Date`) into baseline-aligned, non-wrapping flex-lines without needing complex Markdown tables. Allows literal single pipes (`|`) to be freely used in contact details and descriptions without triggering layout splits.
     * **Dynamic 2-Column Header**: Supplying a photo via `-p` / `--photo` automatically activates a right-aligned portrait photo frame while maintaining full width if omitted.
     * **Native GDPR / RODO Footers**: Dedicated styling for data processing consent clauses that suppresses redundant headers and formats text into a compact, muted, page-anchored block.
 * 🔒 **Immutable & Environment-Driven**: Execution is driven via `$CV_MAKE_CONTAINER_IMAGE`, allowing seamless switching between official production releases and local development images.
@@ -44,8 +44,8 @@ SPDX-License-Identifier: Apache-2.0
 
 * **Operating System**: Modern Linux / POSIX-compliant environment (x86_64 / amd64).
 * **Container Engine**: 
-  * [Podman](https://podman.io/) (strongly recommended for rootless security and unprivileged user namespace UID/GID mapping), **or**
-  * [Docker](https://www.docker.com/) (Engine 20.10+ / Docker Desktop).
+    * [Podman](https://podman.io/) (strongly recommended for rootless security and unprivileged user namespace UID/GID mapping), **or**
+    * [Docker](https://www.docker.com/) (Engine 20.10+ / Docker Desktop).
 * **Shell Environment**: Standard POSIX shell (`bash` or `zsh`).
 * **Privileges**: **100% User-Space** — no `sudo` or `root` permissions required during installation or execution.
 
@@ -199,7 +199,7 @@ cv-make --uninstall
 
 ## 6. Markdown Authoring Guide
 
-`cv-make` translates standard CommonMark into a structured, ATS-compliant HTML DOM optimized for print pagination. 
+`cv-make` translates standard CommonMark into a structured, ATS-compliant HTML DOM optimized for print pagination.
 
 > 💡 **Ready-to-Use Example:** See [`examples/office-manager-cv.md`](examples/office-manager-cv.md) for a complete template alongside its [sample photo](examples/office-manager-photo.jpg) and [compiled PDF](examples/office-manager-cv.pdf).
 
@@ -217,16 +217,16 @@ Results-driven architect with 10+ years of experience leading distributed cloud 
 
 ## Work Experience
 
-### CloudScale Technologies – *Principal Engineer* | 2021 – Present
+### CloudScale Technologies – *Principal Engineer* || 2021 – Present
 - Architected multi-region Kubernetes clusters handling 50k+ req/sec.
 - **Tech Stack:** `Go` `Kubernetes` `Terraform` `AWS`
 
-### Apex Data Systems – *Senior DevOps Engineer* | 2017 – 2021
+### Apex Data Systems – *Senior DevOps Engineer* || 2017 – 2021
 - Automated CI/CD release pipelines reducing deployment frequency from weeks to minutes.
 
 ## Education
 
-### University of California, Berkeley | 2013 – 2017
+### University of California, Berkeley || 2013 – 2017
 *B.S. in Computer Science*
 
 ## GDPR Clause
@@ -238,7 +238,7 @@ I hereby give consent for my personal data to be processed for recruitment purpo
 
 * **Header & Contact Info**: Formatted as `# Name` followed immediately by contact links and metadata before the first `##`. When a portrait photo is passed via `-p`, the header automatically shifts into a balanced 2-column flex container.
 * **Section Hierarchy**: Top-level sections use `##` (e.g., `## Work Experience`, `## Education`), creating `<section>` wrappers with automated slug IDs (e.g., `#work-experience`).
-* **Universal Pipe (`|`) Syntax**: The pipe character (`|`) in headings or paragraphs splits content into a two-column `.flex-line` (left: title/organization, right: baseline-aligned, non-wrapping date range).
+* **Universal Double-Pipe (`||`) Syntax**: The double-pipe operator (`||`) in headings or paragraphs splits content into a two-column `.flex-line` (left: title/organization, right: baseline-aligned, non-wrapping date range). Single pipe characters (`|`) remain literal text, allowing unconstrained use in contact details and skill descriptions.
 * **Tags & Skills**: Text wrapped in backticks (``tag``) renders as rounded badges in **IBM Plex Mono**.
 * **GDPR / Privacy Clause**: Sections titled `## GDPR Clause` or `## Privacy Clause` automatically hide the `<h2>` heading and style the text as a compact, unbroken legal footnote.
 
@@ -291,7 +291,7 @@ Stage 1: AST Parsing (markdown-it-py)
 Stage 2: Semantic DOM Transformation (BeautifulSoup4)
 ├─ Dynamic Header & Photo Flexbox Layout
 ├─ Structural Section Wrapping & Slugified IDs
-└─ Universal Pipe (|) Splitter into .flex-line
+└─ Universal Double-Pipe (||) Splitter into .flex-line
 │
 ▼
 Stage 3: HTML5 Assembly (Jinja2 Template Engine)
@@ -304,7 +304,7 @@ Stage 4: DTP Layout & Typesetting (WeasyPrint)
 ```
 
 1. **AST Parsing (`markdown-it-py`)**: Parses CommonMark text into an intermediate HTML Abstract Syntax Tree.
-2. **Semantic DOM Transformation (`BeautifulSoup4`)**: Restructures HTML nodes into a semantic, print-ready hierarchy (generating `<section>` containers with deterministic slug IDs, structuring the 2-column header, and splitting pipe-delimited lines into baseline-aligned `.flex-line` elements).
+2. **Semantic DOM Transformation (`BeautifulSoup4`)**: Restructures HTML nodes into a semantic, print-ready hierarchy (generating `<section>` containers with deterministic slug IDs, structuring the 2-column header, and splitting double-pipe-delimited (`||`) lines into baseline-aligned `.flex-line` elements).
 3. **HTML5 Assembly (`Jinja2`)**: Embeds transformed markup into a standalone HTML5 template with linked stylesheets.
 4. **Vector PDF Typesetting (`WeasyPrint`)**: Renders the document against CSS3 Paged Media rules, embedding IBM Plex fonts and producing an ATS-compliant Unicode vector PDF stream.
 
@@ -334,7 +334,6 @@ You can test local modifications to `src/cv_make.py` or `src/styles/default.css`
 podman run -i --rm \
   -v "$(pwd)/src:/app:ro,z" \
   "$CV_MAKE_CONTAINER_IMAGE" -v < examples/office-manager-cv.md > test_output.pdf
-
 ```
 
 To test against an ad-hoc container image override:

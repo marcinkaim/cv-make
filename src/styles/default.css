@@ -109,7 +109,7 @@ body {
   border-radius: 2px;
 }
 
-/* Generic Pipe Splitter & Flex-Line Engine */
+/* Generic Splitter & Flex-Line Engine */
 .flex-line {
   display: flex !important;
   justify-content: space-between !important;
@@ -137,21 +137,20 @@ body {
 .cv-section.level-2 h2 {
   font-size: 14pt;
   font-weight: 700;
-  margin-top: 5mm;       /* Lekkie zwiększenie odstępu przed głównymi sekcjami */
+  margin-top: 5mm;
   margin-bottom: 2.5mm;
   border-bottom: 1.5px solid #222222;
 }
 
-/* Najnowsze / Główne okresy zatrudnienia (H3) */
 .cv-section.level-3 {
-  margin-bottom: 2mm;    /* Odstęp po całej podsekcji firmy */
+  margin-bottom: 2mm;
 }
 
 .cv-section.level-3 h3 {
   font-size: 11pt;
   font-weight: 600;
-  margin-top: 5.5mm;     /* ZWIĘKSZONE z 3.5mm na 5.5mm - odseparowanie firm od siebie */
-  margin-bottom: 1.5mm;  /* Lekkie zwiększenie odstępu pod nagłówkiem firmy */
+  margin-top: 5.5mm;
+  margin-bottom: 1.5mm;
 }
 
 .cv-section.level-3 p {
@@ -159,7 +158,6 @@ body {
   margin-bottom: 1.5mm;
 }
 
-/* Starsze / Wcześniejsze okresy zatrudnienia (H4) */
 .cv-section.level-4 {
   margin-bottom: 1.5mm;
 }
@@ -167,7 +165,7 @@ body {
 .cv-section.level-4 h4 {
   font-size: 9.5pt;
   font-weight: 600;
-  margin-top: 4mm;       /* ZWIĘKSZONE z 2.5mm na 4mm - odseparowanie mniejszych wpisów */
+  margin-top: 4mm;
   margin-bottom: 1mm;
   color: #333333;
 }

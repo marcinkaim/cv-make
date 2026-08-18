@@ -79,19 +79,19 @@ The document structure shall map strictly to a 4-tier HTML heading hierarchy:
 
 #### Requirement 5: Universal Line Splitting Syntax
 
-* **Single-Purpose Pipe Operator (`|`):** The pipe symbol (`|`) is strictly reserved as an alignment separator across all CV sections.
-* **Syntax Parsing:** The preprocessor shall scan heading nodes (`H3`/`H4`) and standalone paragraphs for the presence of the pipe character (`|`). The pipe character acts as a logical delimiter between left-aligned content (e.g., company and role name) and right-aligned content (e.g., employment date range).
+* **Dedicated Double-Pipe Operator (`||`):** The double-pipe symbol (`||`) is strictly designated as the alignment delimiter for horizontal line splitting across all CV sections. Single pipe characters (`|`) are treated as standard literal text, enabling unconstrained usage in contact blocks, skill listings, or inline metadata without triggering unintended layout transformations.
+* **Syntax Parsing:** The preprocessor shall scan heading nodes (`H3`/`H4`) and standalone paragraphs for the presence of the double-pipe sequence (`||`). The `||` token acts as a logical delimiter between left-aligned content (e.g., entity, job title, role specification) and right-aligned content (e.g., employment date range, academic period, or location).
 
 #### Requirement 6: Flexbox Transformation & Right-Aligned Date Engine
 
-* **Flexbox Transformation Rule:** Any Markdown header (`H3`/`H4`) or standalone paragraph containing a pipe (`|`) symbol shall be parsed into a 2-column flexbox container (`<h3 class="flex-line">` or `<div class="flex-line">`):
+* **Flexbox Transformation Rule:** Any Markdown header (`H3`/`H4`) or standalone paragraph containing a double-pipe (`||`) symbol shall be parsed into a 2-column flexbox container (`<h3 class="flex-line">`, `<h4 class="flex-line">`, or `<div class="flex-line">`):
     ```html
     <h3 class="flex-line">
       <span class="line-left">Company Inc. – <em>Software Engineer</em></span>
       <span class="line-right">01.2023 – 03.2024</span>
     </h3>
     ```
-* **Unification & Layout Execution:** The pipe symbol is stripped during parsing. The preprocessor extracts child DOM nodes into `.line-left` and `.line-right` spans. The underlying CSS flexbox layout aligns `.line-left` flush left and `.line-right` flush right (`justify-content: space-between`), ensuring precise horizontal alignment across employment and education entries.
+* **Unification & Layout Execution:** The `||` delimiter is stripped during parsing. The preprocessor extracts child DOM nodes into `.line-left` and `.line-right` spans. The underlying CSS flexbox layout aligns `.line-left` flush left and `.line-right` flush right (`justify-content: space-between`), ensuring precise horizontal alignment across employment and education entries.
 
 #### Requirement 7: Main Header Block & Profile Photo Layout
 
@@ -106,13 +106,13 @@ The document structure shall map strictly to a 4-tier HTML heading hierarchy:
 
 #### Requirement 9: Structural Abstraction, Multi-Level Slugification & CSS Cascade Engine
 
-* **Minimal Structural Awareness:** The Python preprocessor remains agnostic to specific section titles, handling layout and DOM enrichment strictly via heading hierarchy levels (H1 through H4) and generic pipe syntax.
+* **Minimal Structural Awareness:** The Python preprocessor remains agnostic to specific section titles, handling layout and DOM enrichment strictly via heading hierarchy levels (H1 through H4) and generic double-pipe (`||`) syntax.
 * **Automated Multi-Level Section Wrapping & Slugification:** Every section and subsection at all heading levels (H1, H2, H3, and H4) shall be encapsulated within semantic containers (`<section class="cv-section level-{n}" id="{slug}" data-title="{title}">`). The `id` slug is algorithmically generated across all levels by:
     1. Converting heading text to lowercase.
     2. Replacing all non-alphanumeric characters with hyphens (`-`).
     3. Collapsing consecutive hyphens (`--`) into a single hyphen (`-`).
     4. Trimming leading and trailing hyphens.
-        *(Example: `### Independent R&D / Open Source Projects | 08.2025 – present` -> `id="independent-r-d-open-source-projects-08-2025-present"`)*.
+        *(Example: `### Independent R&D / Open Source Projects || 08.2025 – present` -> `id="independent-r-d-open-source-projects-08-2025-present"`)*.
 * **Cascading Stylesheet Inheritance:** The document compilation shall **always** load the embedded base stylesheet (`default.css`) first. Any custom user stylesheets provided via `--style` flags shall be injected sequentially afterward, enabling users to target specific section IDs at any structural depth and override default styling rules via standard CSS cascade order.
 
 #### Requirement 10: Verbose Diagnostic Logging Engine
@@ -241,7 +241,7 @@ cv-make -h | --help
     css_objects = [CSS(filename=style_path) for style_path in stylesheets]
     pdf_doc.write_pdf(sys.stdout.buffer, stylesheets=css_objects)
     ```
-4. This programmatic stylesheet ingestion guarantees reliable URL and font path resolution inside the container, giving users full flexibility to override default fonts, colors, section spacing, or pipe-alignment (`.flex-line`) behaviors via standard CSS cascade rules without relying on intermediate HTML `<link>` tag resolution.
+4. This programmatic stylesheet ingestion guarantees reliable URL and font path resolution inside the container, giving users full flexibility to override default fonts, colors, section spacing, or double-pipe flex-line alignment (`.flex-line`) behaviors via standard CSS cascade rules without relying on intermediate HTML `<link>` tag resolution.
 
 ### 2.2 Host Environment & Container Engine Auto-Detection
 
@@ -442,7 +442,7 @@ The structural transformation pipeline executes through sequential processing pa
     * Elements up to the first `H2` heading are grouped into a `<div class="header-left">` container.
     * If a profile photograph is supplied via `--photo`, an auto-fitted `<div class="header-right">` container holding the `<img>` tag is appended. If omitted, `.header-left` expands to fill 100% of the header width.
 5. **Multi-Level Section Wrapping & Slugification:** Scans the DOM tree for headings (H1 through H4) and encapsulates sections and subsections into semantic containers (`<section class="cv-section level-{n}" id="{slug}" data-title="{title}">`). Unique element `id` attributes are algorithmically generated by slugifying heading text (converting to lowercase, replacing non-alphanumeric characters with single hyphens, and trimming bounds).
-6. **Pipe Splitter & Flexbox DOM Normalization:** Scans heading elements (`H3`/`H4`) and standalone paragraphs for the pipe operator (`|`). When detected, element contents are split around the delimiter into two child DOM spans: `.line-left` (company name and role details) and `.line-right` (employment/education date ranges). The parent tag receives the `.flex-line` class (converting `<p>` elements to `<div>` tags where necessary). Inner DOM nodes (e.g., `<em>` or `<strong>`) are cleanly unrolled and appended to preserve formatting.
+6. **Double-Pipe Splitter & Flexbox DOM Normalization:** Scans heading elements (`H3`/`H4`) and standalone paragraphs for the double-pipe operator (`||`). When detected, element contents are split around the delimiter into two child DOM spans: `.line-left` (company name and role details) and `.line-right` (employment/education date ranges or locations). The parent tag receives the `.flex-line` class (converting `<p>` elements to `<div>` tags where necessary). Inner DOM nodes (e.g., `<em>` or `<strong>`) are cleanly unrolled and appended to preserve formatting. Single pipe characters (`|`) are ignored during this stage and preserved as literal text.
 7. **Special Section Identification:** Assigns predictable semantic IDs (such as `#gdpr-clause`, `#klauzula-rodo`, or `#gdpr`) to legal compliance sections based on heading slugs, enabling targeted CSS formatting without hardcoding business logic in the parser.
 
 ### 3.2 Typography, Font Resolution & Bullet List Mechanics
@@ -514,7 +514,7 @@ To ensure predictable document pagination across multi-page layouts, stylesheet 
     * Major structural sections and high-level subsections are permitted to break naturally across page boundaries between elements.
     * Permitting multi-item sections to fragment fluidly between entries avoids large empty vertical gaps and prevents entire extensive sections from being pushed to subsequent pages unnecessarily.
 * **Atomic Block Integrity:**
-    * Core structural units—including the main header container, right-aligned pipe rows (`.flex-line`), individual bullet list items (`<li>`), and compact nested subsections—are treated as unbreakable atomic elements that cannot be split internally across page breaks.
+    * Core structural units—including the main header container, right-aligned double-pipe flex rows (`.flex-line`), individual bullet list items (`<li>`), and compact nested subsections—are treated as unbreakable atomic elements that cannot be split internally across page breaks.
 * **Paragraph Line Flow & Space Optimization:**
     * Paragraph fragmentation rules are relaxed to allow multi-line descriptive text to divide naturally across page transitions when required.
     * This flexibility optimizes printable page utilization, reclaiming vertical space at page bottoms without prematurely forcing complete paragraphs onto a new page.
@@ -574,7 +574,7 @@ The containerized document processing engine relies on a lightweight Python 3 st
 
 1. **Python 3 Runtime:** Serves as the primary orchestration runtime inside the container, executing `/app/cv_make.py`.
 2. **`markdown-it-py` (Markdown AST Parser):** Ingests raw Markdown text from `STDIN` and generates an Abstract Syntax Tree (AST). It provides fast, CommonMark-compliant parsing with extensible AST token handling.
-3. **`BeautifulSoup4` (HTML DOM Transformation Engine):** Inspects and manipulates the intermediate HTML structure. It performs section wrapping (`<section class="cv-section level-{n}" id="{slug}">`), multi-level slugification, header block restructuring, and pipe-splitting (`.flex-line`) transformation.
+3. **`BeautifulSoup4` (HTML DOM Transformation Engine):** Inspects and manipulates the intermediate HTML structure. It performs section wrapping (`<section class="cv-section level-{n}" id="{slug}">`), multi-level slugification, header block restructuring, and double-pipe line-splitting (`.flex-line`) transformation.
 4. **`Jinja2` (HTML Document Templating):** Renders the final, standalone HTML5 document structure, dynamically wrapping intermediate DOM elements into a clean HTML layout.
 5. **`WeasyPrint` (DTP Rendering Engine):** Converts the enriched HTML5 DOM alongside programmatically ingested CSS objects (`default.css` and optional user stylesheets) into a publication-ready PDF document. WeasyPrint supports CSS Paged Media standards (`@page`), vector text embedding, and interactive PDF hyperlink annotations.
 
@@ -615,7 +615,7 @@ The containerized document processing engine relies on a lightweight Python 3 st
 | **Host Integration** | Host Wrapper Script | POSIX Bash (`sh` / `bash`) | CLI parsing, asset mounting, container invocation, pipe redirection. |
 | **Container Base** | Operating System | `debian:trixie-slim` | Isolated execution environment, system library & font provider. |
 | **Parser Engine** | Markdown AST Parser | `markdown-it-py` | Fast, spec-compliant Markdown tokenization and AST parsing. |
-| **DOM Processor** | HTML Manipulator | `BeautifulSoup4` | Section wrapping, slugification, pipe line-splitting (`.flex-line`). |
+| **DOM Processor** | HTML Manipulator | `BeautifulSoup4` | Section wrapping, slugification, double-pipe line-splitting (`.flex-line`). |
 | **Templating** | Document Wrapper | `Jinja2` | Constructs standalone HTML5 document wrapper. |
 | **DTP / PDF Engine** | Typesetting Engine | `WeasyPrint` | Converts HTML5 + CSS Paged Media into ATS-compliant vector PDF. |
 | **Typography** | Default Font Family | `fonts-ibm-plex` | Provides system font binaries (`IBM Plex Sans`) inside the container. |
