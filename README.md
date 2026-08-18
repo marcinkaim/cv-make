@@ -391,7 +391,7 @@ This repository is 100% compliant with the [REUSE Specification v3.3](https://re
 
 ### 11.3 Third-Party Attributions
 
-The container runtime environment incorporates open-source software and typography assets. Detailed legal notices and copyright attributions are maintained in the [`NOTICE`](https://www.google.com/search?q=NOTICE) file.
+The container runtime environment incorporates open-source software and typography assets. Detailed legal notices and copyright attributions are maintained in the [`NOTICE`](NOTICE) file.
 
 ### 11.4 Generated Documents Copyright Guarantee
 
